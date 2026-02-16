@@ -69,3 +69,6 @@ license:
   help: What license do you want to use?
   choices: ["MIT", "Apache-2.0", "GPL-3.0"]
   default: MIT
+
+_tasks:
+  - git init
