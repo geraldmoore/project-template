@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).parent.parent.parent.parent
 BASE_DIR = Path(__file__).parent.parent.parent
 {%- endif %}
 
-class Environment(str, Enum):
+class Environment(Enum):
     """Application environment."""
 
     LOCAL = "local"
