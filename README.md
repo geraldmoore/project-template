@@ -19,7 +19,7 @@ pip install python-slugify
 ### Generate a new project
 
 ```bash
-copier copy gh:geraldmoore/project-template /path/to/your/project
+copier copy --trust gh:geraldmoore/project-template /path/to/your/project
 ```
 
 ### Update an existing project
