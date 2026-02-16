@@ -21,7 +21,7 @@ class Environment(Enum):
 class Settings(BaseSettings):
     environment: Environment = Environment.LOCAL
 
-    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", env_file_encoding="utf-8")
 
     @property
     def is_local(self) -> bool:
