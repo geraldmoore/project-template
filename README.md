@@ -22,6 +22,14 @@ pip install python-slugify
 copier copy --trust gh:geraldmoore/project-template /path/to/your/project
 ```
 
+### Git initialise the new project
+
+Change directory to yor new project then initialise `git`:
+
+```bash
+git init
+```
+
 ### Update an existing project
 
 In the project repository:
