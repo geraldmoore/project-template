@@ -5,6 +5,7 @@ from pathlib import Path
 from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
+
 {%- if project_type == "Library" %}
 BASE_DIR = Path(__file__).parent.parent.parent.parent
 {%- else %}

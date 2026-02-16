@@ -1,4 +1,4 @@
-{%- if setup_logging %}from {{ module_name }}.core.config.logging import setup_logging{%- endif %}
-{%- if setup_settings %}from {{ module_name }}.core.config.settings import get_settings{%- endif %}
+{% if setup_logging %}from {{ module_name }}.core.config.logging import setup_logging{% endif %}
+{% if setup_settings %}from {{ module_name }}.core.config.settings import get_settings{% endif %}
 
 __all__ = [{% if setup_logging %}"setup_logging", {% endif %}{% if setup_settings %}"get_settings"{% endif %}]
