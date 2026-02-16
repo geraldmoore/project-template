@@ -3,6 +3,7 @@ name = "project-template"
 version = "0.1.0"
 description = "A copier uv template"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "copier>=9.11.3",
