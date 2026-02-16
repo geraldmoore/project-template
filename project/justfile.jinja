@@ -1,0 +1,34 @@
+default:
+    @just --list
+
+# Run all checks (lint, typecheck, test)
+check: lint typecheck test
+
+# Run ruff linter
+lint:
+    uv run ruff check .
+
+# Run ruff formatter check
+format-check:
+    uv run ruff format --check .
+
+# Format code with ruff
+format:
+    uv run ruff format .
+    uv run ruff check --fix .
+
+# Run ty type checker
+typecheck:
+    uv run ty check
+
+# Run tests
+test *args:
+    uv run pytest {{ '{{ args }}' }}
+
+# Run tests with coverage
+test-cov:
+    uv run pytest --cov={% if project_type == "Library" %}src/{% endif %}{{ module_name }} --cov-report=term-missing
+
+# Install dependencies
+install:
+    uv sync

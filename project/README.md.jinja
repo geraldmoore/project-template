@@ -1,0 +1,76 @@
+# {{ project_name }}
+
+{{ project_description }}
+
+## Installation
+
+```bash
+pip install -e .
+```
+
+With [`uv`](https://docs.astral.sh/uv/):
+
+```bash
+uv sync
+```
+
+## Development
+
+This project uses [`just`](https://github.com/casey/just) as a command runner. Run `just` to see all available commands:
+
+```bash
+just          # list available commands
+just check    # run all checks (lint, typecheck, test)
+just lint     # run ruff linter
+just format   # format code with ruff
+just test     # run tests
+just test-cov # run tests with coverage
+```
+{%- if setup_settings %}
+
+## Settings
+
+Settings are managed with [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) and loaded from environment variables and the `.env` file.
+
+```python
+from {{ module_name }}.core.config import get_settings
+
+settings = get_settings()
+print(settings.environment)  # "local", "staging", or "production"
+print(settings.is_production)
+```
+
+To add new settings, extend the `Settings` class in `{{ module_name }}/core/config/settings.py`:
+
+```python
+class Settings(BaseSettings):
+    environment: Environment = Environment.LOCAL
+    my_new_setting: str = "default"
+```
+
+Then set the value via environment variable or `.env`:
+
+```bash
+MY_NEW_SETTING=value
+```
+{%- endif %}
+{%- if setup_logging %}
+
+## Logging
+
+Call `setup_logging` inside any startup scripts:
+
+```python
+from {{ module_name }}.core.config import setup_logging
+
+setup_logging()
+```
+
+This configures coloured console output. Pass a custom level if needed:
+
+```python
+import logging
+
+setup_logging(level=logging.DEBUG)
+```
+{%- endif %}

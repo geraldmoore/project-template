@@ -1,0 +1,45 @@
+from enum import Enum
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic import ConfigDict
+from pydantic_settings import BaseSettings
+
+{%- if project_type == "Library" %}
+BASE_DIR = Path(__file__).parent.parent.parent.parent
+{%- else %}
+BASE_DIR = Path(__file__).parent.parent.parent
+{%- endif %}
+
+class Environment(str, Enum):
+    """Application environment."""
+
+    LOCAL = "local"
+    STAGING = "staging"
+    PRODUCTION = "production"
+
+
+class Settings(BaseSettings):
+    environment: Environment = Environment.LOCAL
+
+    model_config = ConfigDict(env_file=BASE_DIR / ".env", encoding="utf-8")
+
+    @property
+    def is_local(self) -> bool:
+        """Check if running in local environment."""
+        return self.environment == Environment.LOCAL
+
+    @property
+    def is_staging(self) -> bool:
+        """Check if running in staging environment."""
+        return self.environment == Environment.STAGING
+
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production environment."""
+        return self.environment == Environment.PRODUCTION
+
+
+@lru_cache(maxsize=1)
+def get_settings():
+    return Settings()

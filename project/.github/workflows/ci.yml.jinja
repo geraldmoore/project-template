@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install {{ python_version }}
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format
+        run: uv run ruff format --check .
+
+      - name: Typecheck
+        run: uv run ty check
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: {{ python_ci_versions | to_yaml_list }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install {{ '${{ matrix.python-version }}' }}
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Test
+        run: uv run pytest --cov={% if project_type == "Library" %}src/{% endif %}{{ module_name }} --cov-report=term-missing
