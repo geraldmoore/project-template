@@ -2,10 +2,9 @@ from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-{%- if project_type == "Library" %}
+{% if project_type == "Library" %}
 BASE_DIR = Path(__file__).parent.parent.parent.parent
 {%- else %}
 BASE_DIR = Path(__file__).parent.parent.parent
