@@ -3,12 +3,11 @@ from functools import lru_cache
 from pathlib import Path
 
 from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
-{% if project_type == "Library" %}
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
+{%- if project_type == "Library" %}
 BASE_DIR = Path(__file__).parent.parent.parent.parent
 {%- else %}
-
 BASE_DIR = Path(__file__).parent.parent.parent
 {%- endif %}
 
@@ -24,7 +23,7 @@ class Environment(Enum):
 class Settings(BaseSettings):
     environment: Environment = Environment.LOCAL
 
-    model_config = ConfigDict(env_file=BASE_DIR / ".env", encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", encoding="utf-8")
 
     @property
     def is_local(self) -> bool:
