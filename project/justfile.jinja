@@ -1,7 +1,7 @@
 default:
     @just --list
 
-# Run all checks (lint, typecheck, test)
+# Run all checks
 check: lint typecheck test
 
 # Run ruff linter
@@ -21,13 +21,13 @@ format:
 typecheck:
     uv run ty check
 
-# Run all prek hooks
-prek:
-    uv tool prek run --all-files
-
 # Install prek git hooks
 prek-install:
-    uv tool prek install
+    uvx prek install
+    
+# Run all prek hooks
+prek:
+    uvx prek run --all-files
 
 # Run tests
 test *args:
@@ -40,3 +40,4 @@ test-cov:
 # Install dependencies and prek hooks
 install:
     uv sync
+    uvx prek install

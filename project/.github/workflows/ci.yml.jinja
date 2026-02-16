@@ -24,10 +24,7 @@ jobs:
         run: uv sync
 
       - name: Run prek hooks
-        run: uv tool prek run --all-files
-
-      - name: Typecheck
-        run: uv run ty check
+        run: uvx prek run --all-files
 
   test:
     runs-on: ubuntu-latest

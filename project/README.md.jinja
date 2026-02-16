@@ -16,21 +16,36 @@ uv sync
 
 ## Development
 
-This project uses [`just`](https://github.com/casey/just) as a command runner. Run `just` to see all available commands:
+This project uses [`just`](https://github.com/casey/just) as a command runner. Run `just` to see all 
+available commands:
 
 ```bash
-just          # list available commands
-just check    # run all checks (lint, typecheck, test)
-just lint     # run ruff linter
-just format   # format code with ruff
-just test     # run tests
-just test-cov # run tests with coverage
+just               # list available commands
+just check         # run all checks (lint, typecheck, test)
+just format        # Format code with ruff (applies fixes)
+just format-check  # Run ruff formatter check (without fixes)
+just install       # Install dependencies and prek hooks
+just lint          # Run ruff linter
+just prek          # Run all prek hooks
+just prek-install  # Install prek git hooks
+just test *args    # Run tests
+just test-cov      # Run tests with coverage
+just typecheck     # Run ty type checker
 ```
 {%- if setup_settings %}
 
+The project also uses [`prek`](https://prek.j178.dev/) for pre-commit hook management. These hooks 
+automatically apply format and type checks on `git` commits only (not on the entire codebase). This 
+ensures all committed code follows pre-defined standards, whilst the rest of the codebase can maintain
+development flexibility. 
+
+If you prefer to keep everything up to standard, use `just check` or the individual `just format` or 
+`just lint` commands to run on the entire codebase.
+
 ## Settings
 
-Settings are managed with [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) and loaded from environment variables and the `.env` file.
+Settings are managed with [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) 
+with values loaded from environment variables (priority) or a `.env` file (fallback).
 
 ```python
 from {{ module_name }}.core.config import get_settings
@@ -48,7 +63,7 @@ class Settings(BaseSettings):
     my_new_setting: str = "default"
 ```
 
-Then set the value via environment variable or `.env`:
+Then set the value via environment variable (priorty) or `.env` (fallback):
 
 ```bash
 MY_NEW_SETTING=value
