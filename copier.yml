@@ -49,6 +49,12 @@ python_version:
   choices: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
   default: "3.12"
 
+license:
+  type: str
+  help: What license do you want to use?
+  choices: ["MIT", "Apache-2.0", "GPL-3.0"]
+  default: MIT
+
 python_ci_versions:
   type: str
   help: Which Python versions to test in CI? (comma-separated, e.g. '3.12, 3.13')
