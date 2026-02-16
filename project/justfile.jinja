@@ -8,11 +8,11 @@ check: lint typecheck test
 lint:
     uv run ruff check .
 
-# Run ruff formatter check
+# Run ruff formatter check (without fixes)
 format-check:
     uv run ruff format --check .
 
-# Format code with ruff
+# Format code with ruff (applies fixes)
 format:
     uv run ruff format .
     uv run ruff check --fix .
@@ -20,6 +20,14 @@ format:
 # Run ty type checker
 typecheck:
     uv run ty check
+
+# Run all prek hooks
+prek:
+    uv tool prek run --all-files
+
+# Install prek git hooks
+prek-install:
+    uv tool prek install
 
 # Run tests
 test *args:
@@ -29,6 +37,6 @@ test *args:
 test-cov:
     uv run pytest --cov={% if project_type == "Library" %}src/{% endif %}{{ module_name }} --cov-report=term-missing
 
-# Install dependencies
+# Install dependencies and prek hooks
 install:
     uv sync

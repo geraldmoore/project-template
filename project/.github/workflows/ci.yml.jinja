@@ -23,11 +23,8 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Lint
-        run: uv run ruff check .
-
-      - name: Format
-        run: uv run ruff format --check .
+      - name: Run prek hooks
+        run: uv tool prek run --all-files
 
       - name: Typecheck
         run: uv run ty check

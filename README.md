@@ -1,6 +1,6 @@
 # Project Template
 
-A [Copier](https://copier.readthedocs.io/) template for Python projects using [uv](https://docs.astral.sh/uv/).
+A [Copier](https://copier.readthedocs.io/) template for Python projects using [uv](https://docs.astral.sh/uv/) and [prek](https://prek.j178.dev/) for git hook management.
 
 ## Prerequisites
 
