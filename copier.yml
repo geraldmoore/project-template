@@ -10,12 +10,6 @@ _jinja_extensions:
   - extensions.py:SlugifyExtension
   - extensions.py:YamlListExtension
 
-project_type:
-  type: str
-  help: Is the repository for a library or project?
-  choices: ["Project", "Library"]
-  default: Project
-
 project_name:
   type: str
   help: What is your project name?
