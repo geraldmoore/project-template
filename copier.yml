@@ -58,6 +58,25 @@ setup_logging:
   help: Do you want to set up logging?
   default: yes
 
+is_ml_project:
+  type: bool
+  help: Is this a machine learning project?
+  default: no
+
+experiment_tracker:
+  type: str
+  help: Which experiment tracking tool to use? (only applicable for ML projects)
+  choices: ["none", "wandb", "mlflow"]
+  default: "none"
+  when: "{{ is_ml_project }}"
+
+ml_framework:
+  type: str
+  help: Which ML framework to use?
+  choices: ["pytorch", "tensorflow", "agnostic"]
+  default: "pytorch"
+  when: "{{ is_ml_project }}"
+
 license:
   type: str
   help: What license do you want to use?

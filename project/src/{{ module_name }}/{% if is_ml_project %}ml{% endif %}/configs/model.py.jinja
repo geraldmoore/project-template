@@ -1,0 +1,35 @@
+"""Model configuration schema."""
+
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class ModelConfig(BaseModel):
+    """Model architecture configuration."""
+
+    name: str = Field(default="default", description="Model name/identifier")
+    model_type: str = Field(default="mlp", description="Type of model (mlp, cnn, transformer, etc.)")
+
+    {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
+    # PyTorch-specific config
+    dropout_rate: float = Field(default=0.1, ge=0.0, le=1.0, description="Dropout rate")
+    activation: str = Field(default="relu", description="Activation function")
+    {%- endif %}
+
+    {%- if ml_framework == "tensorflow" or ml_framework == "agnostic" %}
+    # TensorFlow-specific config
+    kernel_initializer: str = Field(default="glorot_uniform", description="Kernel initializer")
+    bias_initializer: str = Field(default="zeros", description="Bias initializer")
+    {%- endif %}
+
+    # Architecture parameters (flexible, framework-agnostic)
+    hidden_dims: list[int] = Field(default_factory=lambda: [128, 64], description="Hidden layer dimensions")
+    input_dim: int = Field(default=784, description="Input feature dimension")
+    output_dim: int = Field(default=10, description="Output dimension (num classes)")
+
+    # Additional custom parameters
+    custom_params: dict[str, Any] = Field(default_factory=dict, description="Additional model parameters")
+
+    class Config:
+        extra = "allow"

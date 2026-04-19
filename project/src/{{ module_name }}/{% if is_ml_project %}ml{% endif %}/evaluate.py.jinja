@@ -1,0 +1,245 @@
+"""Evaluation pipeline for {{ project_name }}."""
+
+from __future__ import annotations
+
+import json
+import logging
+from pathlib import Path
+from typing import Any
+
+from {{ module_name }}.ml.configs.experiment import ExperimentConfig
+
+logger = logging.getLogger(__name__)
+
+
+def evaluate(
+    config: ExperimentConfig | str | Path,
+    model_path: str | Path,
+    output_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    """
+    Evaluate a trained model on test data.
+
+    Args:
+        config: Experiment configuration object or path to YAML config file.
+        model_path: Path to trained model checkpoint.
+        output_dir: Optional output directory for results.
+
+    Returns:
+        Dictionary containing evaluation metrics.
+    """
+    # Load configuration
+    if isinstance(config, (str, Path)):
+        config = ExperimentConfig.from_yaml(config)
+
+    # Set up output directory
+    output_dir = Path(output_dir) if output_dir else Path(config.output_dir) / config.name / "evaluation"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load model
+    model = _load_model(model_path, config)
+
+    # Prepare test data
+    test_loader = _prepare_test_data(config)
+
+    # Run evaluation
+    logger.info(f"Evaluating model on test set")
+    metrics = _run_evaluation(model, test_loader, config)
+
+    # Save results
+    results_path = output_dir / "metrics.json"
+    with open(results_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+    logger.info(f"Saved evaluation metrics to {results_path}")
+
+    # Log confusion matrix if classification
+    if config.model.output_dim > 1:
+        confusion_matrix = _compute_confusion_matrix(model, test_loader, config)
+        cm_path = output_dir / "confusion_matrix.json"
+        with open(cm_path, "w") as f:
+            json.dump(confusion_matrix, f, indent=2)
+        logger.info(f"Saved confusion matrix to {cm_path}")
+
+    return metrics
+
+
+def _load_model(model_path: str | Path, config: ExperimentConfig):
+    """Load trained model from checkpoint."""
+    {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
+    import torch
+
+    model = _create_model(config)
+    checkpoint = torch.load(model_path, map_location=config.device, weights_only=True)
+
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
+
+    model.eval()
+    return model
+    {%- elif ml_framework == "tensorflow" or ml_framework == "agnostic" %}
+    import tensorflow as tf
+
+    return tf.keras.models.load_model(model_path)
+    {%- endif %}
+
+
+def _create_model(config: ExperimentConfig):
+    """Create model based on configuration."""
+    {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
+    import torch.nn as nn
+
+    # Simple MLP as default - replace with your model architecture
+    class MLP(nn.Module):
+        def __init__(self, input_dim: int, hidden_dims: list[int], output_dim: int):
+            super().__init__()
+            layers = []
+            prev_dim = input_dim
+            for hidden_dim in hidden_dims:
+                layers.extend([
+                    nn.Linear(prev_dim, hidden_dim),
+                    nn.ReLU(),
+                    nn.Dropout(config.model.dropout_rate),
+                ])
+                prev_dim = hidden_dim
+            layers.append(nn.Linear(prev_dim, output_dim))
+            self.network = nn.Sequential(*layers)
+
+        def forward(self, x):
+            return self.network(x)
+
+    return MLP(
+        input_dim=config.model.input_dim,
+        hidden_dims=config.model.hidden_dims,
+        output_dim=config.model.output_dim,
+    )
+    {%- elif ml_framework == "tensorflow" or ml_framework == "agnostic" %}
+    import tensorflow as tf
+
+    # Simple MLP as default - replace with your model architecture
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=(config.model.input_dim,)),
+        *[tf.keras.layers.Dense(dim, activation="relu") for dim in config.model.hidden_dims],
+        tf.keras.layers.Dropout(config.model.dropout_rate),
+        tf.keras.layers.Dense(config.model.output_dim, activation="softmax" if config.model.output_dim > 1 else "sigmoid"),
+    ])
+    return model
+    {%- endif %}
+
+
+def _prepare_test_data(config: ExperimentConfig):
+    """Prepare test data loader."""
+    # TODO: Implement test data loading based on config.data
+    # This is a placeholder - implement based on your data format
+    test_loader = None
+    return test_loader
+
+
+def _run_evaluation(model, dataloader, config: ExperimentConfig) -> dict[str, float]:
+    """Run evaluation and compute metrics."""
+    {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
+    import torch
+    import torch.nn as nn
+
+    model.eval()
+    device = torch.device(config.device if torch.cuda.is_available() else "cpu")
+
+    total_loss = 0.0
+    num_batches = 0
+    all_preds = []
+    all_targets = []
+
+    criterion = nn.CrossEntropyLoss() if config.model.output_dim > 1 else nn.BCEWithLogitsLoss()
+
+    with torch.no_grad():
+        for inputs, targets in dataloader:
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+
+            total_loss += loss.item()
+            num_batches += 1
+
+            # Get predictions
+            if config.model.output_dim > 1:
+                preds = outputs.argmax(dim=1)
+            else:
+                preds = (torch.sigmoid(outputs) > 0.5).long()
+
+            all_preds.extend(preds.cpu().numpy())
+            all_targets.extend(targets.cpu().numpy())
+
+    # Compute metrics
+    avg_loss = total_loss / num_batches
+    accuracy = sum(p == t for p, t in zip(all_preds, all_targets)) / len(all_targets)
+
+    metrics = {
+        "test_loss": avg_loss,
+        "accuracy": accuracy,
+    }
+
+    # Add classification metrics if applicable
+    if config.model.output_dim > 1:
+        from sklearn.metrics import precision_score, recall_score, f1_score
+
+        metrics["precision"] = precision_score(all_targets, all_preds, average="weighted", zero_division=0)
+        metrics["recall"] = recall_score(all_targets, all_preds, average="weighted", zero_division=0)
+        metrics["f1"] = f1_score(all_targets, all_preds, average="weighted", zero_division=0)
+
+    return metrics
+    {%- elif ml_framework == "tensorflow" or ml_framework == "agnostic" %}
+    import numpy as np
+
+    # Evaluate on test data
+    result = model.evaluate(dataloader, verbose=0)
+
+    metrics = {
+        "test_loss": float(result[0]) if isinstance(result, list) else float(result),
+    }
+
+    # Get predictions for additional metrics
+    preds = model.predict(dataloader, verbose=0)
+    if config.model.output_dim > 1:
+        preds = np.argmax(preds, axis=1)
+
+    # TODO: Compute additional metrics based on your needs
+    return metrics
+    {%- endif %}
+
+
+def _compute_confusion_matrix(model, dataloader, config: ExperimentConfig) -> list[list[int]]:
+    """Compute confusion matrix for classification tasks."""
+    {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
+    import torch
+
+    model.eval()
+    device = torch.device(config.device if torch.cuda.is_available() else "cpu")
+
+    all_preds = []
+    all_targets = []
+
+    with torch.no_grad():
+        for inputs, targets in dataloader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            outputs = model(inputs)
+            preds = outputs.argmax(dim=1)
+            all_preds.extend(preds.cpu().numpy())
+            all_targets.extend(targets.cpu().numpy())
+
+    from sklearn.metrics import confusion_matrix
+    cm = confusion_matrix(all_targets, all_preds)
+    return cm.tolist()
+    {%- elif ml_framework == "tensorflow" or ml_framework == "agnostic" %}
+    import numpy as np
+    from sklearn.metrics import confusion_matrix
+
+    preds = model.predict(dataloader, verbose=0)
+    if config.model.output_dim > 1:
+        preds = np.argmax(preds, axis=1)
+
+    # TODO: Get true labels and compute confusion matrix
+    cm = confusion_matrix([], [])  # Replace with actual labels
+    return cm.tolist()
+    {%- endif %}

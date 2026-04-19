@@ -1,0 +1,107 @@
+"""CLI for ML commands."""
+
+import argparse
+from pathlib import Path
+
+
+def main():
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(description="{{ project_name }} ML CLI")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Train command
+    train_parser = subparsers.add_parser("train", help="Train a model")
+    train_parser.add_argument(
+        "--config", "-c",
+        type=str,
+        default="configs/default_config.yaml",
+        help="Path to experiment config YAML file",
+    )
+    train_parser.add_argument(
+        "--output-dir", "-o",
+        type=str,
+        default=None,
+        help="Output directory override",
+    )
+
+    # Evaluate command
+    eval_parser = subparsers.add_parser("evaluate", help="Evaluate a trained model")
+    eval_parser.add_argument(
+        "--config", "-c",
+        type=str,
+        default="configs/default_config.yaml",
+        help="Path to experiment config YAML file",
+    )
+    eval_parser.add_argument(
+        "--model-path", "-m",
+        type=str,
+        required=True,
+        help="Path to trained model checkpoint",
+    )
+    eval_parser.add_argument(
+        "--output-dir", "-o",
+        type=str,
+        default=None,
+        help="Output directory for results",
+    )
+
+    # Predict command
+    predict_parser = subparsers.add_parser("predict", help="Run inference")
+    predict_parser.add_argument(
+        "--config", "-c",
+        type=str,
+        default="configs/default_config.yaml",
+        help="Path to experiment config YAML file",
+    )
+    predict_parser.add_argument(
+        "--model-path", "-m",
+        type=str,
+        required=True,
+        help="Path to trained model checkpoint",
+    )
+    predict_parser.add_argument(
+        "--input", "-i",
+        type=str,
+        required=True,
+        help="Input data file or directory",
+    )
+    predict_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output file for predictions",
+    )
+    predict_parser.add_argument(
+        "--probabilities",
+        action="store_true",
+        help="Return class probabilities",
+    )
+
+    args = parser.parse_args()
+
+    if args.command == "train":
+        from {{ module_name }}.ml.train import train
+        results = train(args.config, output_dir=args.output_dir)
+        print(f"Training completed. Best validation loss: {results.get('best_val_loss', 'N/A')}")
+
+    elif args.command == "evaluate":
+        from {{ module_name }}.ml.evaluate import evaluate
+        metrics = evaluate(args.config, args.model_path, output_dir=args.output_dir)
+        print(f"Evaluation metrics: {metrics}")
+
+    elif args.command == "predict":
+        from {{ module_name }}.ml.predict import predict
+        result = predict(
+            args.config,
+            args.model_path,
+            args.input,
+            return_probabilities=args.probabilities,
+        )
+        print(f"Predictions: {result['predictions']}")
+
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

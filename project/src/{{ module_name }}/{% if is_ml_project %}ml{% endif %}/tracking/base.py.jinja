@@ -1,0 +1,45 @@
+"""Base tracker interface."""
+
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any
+
+
+class BaseTracker(ABC):
+    """Abstract base class for experiment tracking."""
+
+    @abstractmethod
+    def start_run(self, run_name: str | None = None, config: dict[str, Any] | None = None) -> None:
+        """Start a new experiment run."""
+        pass
+
+    @abstractmethod
+    def log_metrics(self, metrics: dict[str, float], step: int | None = None) -> None:
+        """Log metrics to the tracking system."""
+        pass
+
+    @abstractmethod
+    def log_params(self, params: dict[str, Any]) -> None:
+        """Log parameters to the tracking system."""
+        pass
+
+    @abstractmethod
+    def log_artifact(self, path: str | Path, name: str | None = None) -> None:
+        """Log an artifact (model, data, etc.)."""
+        pass
+
+    @abstractmethod
+    def log_model(self, model: Any, name: str = "model") -> None:
+        """Log a model artifact."""
+        pass
+
+    @abstractmethod
+    def end_run(self) -> None:
+        """End the current run."""
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end_run()

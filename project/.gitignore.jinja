@@ -22,3 +22,22 @@ uv.lock
 .pytest_cache/
 .ruff_cache/
 __pycache__/
+{%- if is_ml_project %}
+
+# ml artifacts
+checkpoints/
+outputs/
+logs/
+models/
+*.pth
+*.pt
+*.onnx
+*.pb
+*.h5
+*.hdf5
+*.keras
+wandb/
+runs/
+mlruns/
+*.ipynb_checkpoints
+{%- endif %}

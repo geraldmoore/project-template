@@ -1,6 +1,14 @@
 # {{ project_name }}
 
 {{ project_description }}
+{%- if is_ml_project %}
+
+This is a machine learning project with support for:
+- **Framework**: {{ ml_framework | capitalize }}{%- if ml_framework == "agnostic" %} (with PyTorch implementations){%- endif %}
+- **Experiment Tracking**: {%- if experiment_tracker == "wandb" %} Weights & Biases{%- elif experiment_tracker == "mlflow" %} MLflow{%- else %}None configured (can be added later){%- endif %}
+- **Configuration**: YAML configs with pydantic validation
+- **Pipeline**: Training, evaluation, and prediction scripts included
+{%- endif %}
 
 ## Installation
 
@@ -87,5 +95,172 @@ This configures coloured console output. Pass a custom level if needed:
 import logging
 
 setup_logging(level=logging.DEBUG)
+```
+{%- endif %}
+{%- if is_ml_project %}
+
+## Machine Learning
+
+This project includes a complete ML pipeline with training, evaluation, and prediction scripts.
+
+### Configuration
+
+Experiment configurations are defined in YAML files with pydantic validation:
+
+```python
+from {{ module_name }}.ml.configs.experiment import ExperimentConfig
+
+# Load from YAML
+config = ExperimentConfig.from_yaml("configs/default_config.yaml")
+
+# Or create programmatically
+config = ExperimentConfig(
+    name="my_experiment",
+    model={"input_dim": 784, "output_dim": 10, "hidden_dims": [128, 64]},
+)
+```
+
+Available configuration files:
+- `configs/default_config.yaml` - Default experiment settings
+- `configs/experiment_example.yaml` - Example with custom hyperparameters
+
+### Training
+
+```python
+from {{ module_name }}.ml import train
+
+# Train with config file
+results = train("configs/default_config.yaml")
+
+# Or with config object
+from {{ module_name }}.ml.configs.experiment import ExperimentConfig
+config = ExperimentConfig.from_yaml("configs/default_config.yaml")
+results = train(config)
+```
+
+Training includes:
+- Automatic checkpointing of best model
+- Early stopping based on validation loss
+- Learning rate scheduling
+- Experiment tracking ({%- if experiment_tracker == "wandb" %}W&B{%- elif experiment_tracker == "mlflow" %}MLflow{%- else %}configured tracker{%- endif %})
+
+### Evaluation
+
+```python
+from {{ module_name }}.ml import evaluate
+
+metrics = evaluate(
+    config="configs/default_config.yaml",
+    model_path="outputs/my_experiment/best_model.pth",
+)
+
+print(f"Test accuracy: {metrics['accuracy']:.4f}")
+```
+
+### Prediction/Inference
+
+```python
+from {{ module_name }}.ml import predict
+import numpy as np
+
+# Single prediction
+result = predict(
+    config="configs/default_config.yaml",
+    model_path="outputs/my_experiment/best_model.pth",
+    inputs=np.random.randn(1, 784),  # Your input features
+)
+
+print(f"Prediction: {result['predictions']}")
+```
+
+### Experiment Tracking
+
+{%- if experiment_tracker == "wandb" %}
+This project uses [Weights & Biases](https://wandb.ai/) for experiment tracking.
+
+```bash
+# Login to W&B
+wandb login
+
+# Set your project (optional)
+export WANDB_PROJECT={{ project_name | to_slugify }}
+```
+
+Metrics, parameters, and model artifacts are automatically logged to W&B.
+
+View your experiments at: https://wandb.ai/
+
+{%- elif experiment_tracker == "mlflow" %}
+This project uses [MLflow](https://mlflow.org/) for experiment tracking.
+
+```bash
+# Start MLflow UI
+mlflow ui
+
+# Or set a custom tracking server
+export MLFLOW_TRACKING_URI=http://localhost:5000
+```
+
+Metrics, parameters, and model artifacts are automatically logged to MLflow.
+
+View your experiments at: http://localhost:5000
+
+{%- else %}
+No experiment tracker is configured. To add one:
+
+**Weights & Biases:**
+```bash
+pip install wandb
+wandb login
+```
+
+Then update `src/{{ module_name }}/ml/tracking/__init__.py` to use `WandBTracker`.
+
+**MLflow:**
+```bash
+pip install mlflow
+mlflow ui
+```
+
+Then update `src/{{ module_name }}/ml/tracking/__init__.py` to use `MLFlowTracker`.
+{%- endif %}
+
+### Adding Custom Models
+
+1. Create your model in `src/{{ module_name }}/ml/models/`:
+
+```python
+from {{ module_name }}.ml.models.base import BaseModel
+
+class MyModel(BaseModel):
+    def __init__(self, ...):
+        super().__init__()
+        # Define layers
+
+    def forward(self, x):
+        # Forward pass
+        pass
+
+    def save(self, path):
+        # Save implementation
+        pass
+
+    @classmethod
+    def load(cls, path):
+        # Load implementation
+        pass
+```
+
+2. Update `train.py`, `evaluate.py`, and `predict.py` to use your model.
+
+### Data Loading
+
+Customize data loading in `src/{{ module_name }}/ml/data/datasets.py`:
+
+```python
+def _load_dataset(path: str, config: DataConfig):
+    # Implement for your data format
+    # Supports CSV, Parquet, JSON, or custom formats
+    pass
 ```
 {%- endif %}

@@ -1,0 +1,8 @@
+"""Model architectures for {{ project_name }}."""
+
+from {{ module_name }}.ml.models.base import BaseModel
+{%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
+from {{ module_name }}.ml.models.mlp import MLP
+{%- endif %}
+
+__all__ = ["BaseModel"{%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}, "MLP"{%- endif %}]

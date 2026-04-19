@@ -1,0 +1,47 @@
+"""Tests for ML components."""
+
+import pytest
+
+
+@pytest.mark.ml
+def test_ml_config_imports():
+    """Test that ML config classes can be imported."""
+    from {{ module_name }}.ml.configs import ModelConfig, TrainingConfig, DataConfig, ExperimentConfig
+
+    assert ModelConfig is not None
+    assert TrainingConfig is not None
+    assert DataConfig is not None
+    assert ExperimentConfig is not None
+
+
+@pytest.mark.ml
+def test_model_config_default():
+    """Test ModelConfig default values."""
+    from {{ module_name }}.ml.configs import ModelConfig
+
+    config = ModelConfig()
+    assert config.input_dim == 784
+    assert config.output_dim == 10
+    assert config.hidden_dims == [128, 64]
+
+
+@pytest.mark.ml
+def test_training_config_default():
+    """Test TrainingConfig default values."""
+    from {{ module_name }}.ml.configs import TrainingConfig
+
+    config = TrainingConfig()
+    assert config.batch_size == 32
+    assert config.num_epochs == 10
+    assert config.optimizer.learning_rate == 1e-3
+
+
+@pytest.mark.ml
+def test_experiment_config_from_dict():
+    """Test ExperimentConfig creation."""
+    from {{ module_name }}.ml.configs import ExperimentConfig
+
+    config = ExperimentConfig(name="test_experiment")
+    assert config.name == "test_experiment"
+    assert config.model.input_dim == 784
+    assert config.training.num_epochs == 10

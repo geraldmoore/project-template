@@ -10,9 +10,27 @@ dependencies = [
     {%- if setup_logging %}
     "colorama>=0.4.6",
     {%- endif %}
-    {%- if setup_settings %}
+    {%- if setup_settings or is_ml_project %}
     "pydantic>=2.11.3",
     "pydantic-settings>=2.9.0",
+    {%- endif %}
+    {%- if is_ml_project %}
+    "pyyaml>=6.0",
+    "numpy>=1.24.0",
+    {%- if ml_framework == "pytorch" %}
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    {%- elif ml_framework == "tensorflow" %}
+    "tensorflow>=2.12.0",
+    {%- elif ml_framework == "agnostic" %}
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    {%- endif %}
+    {%- if experiment_tracker == "wandb" %}
+    "wandb>=0.15.0",
+    {%- elif experiment_tracker == "mlflow" %}
+    "mlflow>=2.0.0",
+    {%- endif %}
     {%- endif %}
 ]
 
@@ -25,6 +43,12 @@ dev = [
     "pytest-xdist>=3.6",
     "ty>=0.0.14",
     "prek>=0.3.3",
+    {%- if is_ml_project %}
+    "scikit-learn>=1.3.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "pandas>=2.0.0",
+    {%- endif %}
 ]
 
 [tool.uv]
@@ -56,3 +80,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/{{ module_name }}"]
+{%- if is_ml_project %}
+
+[project.scripts]
+{{ module_name }}-ml = "{{ module_name }}.ml.cli:main"
+{%- endif %}

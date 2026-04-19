@@ -1,0 +1,59 @@
+"""Training configuration schema."""
+
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class OptimizerConfig(BaseModel):
+    """Optimizer configuration."""
+
+    name: str = Field(default="adam", description="Optimizer name")
+    learning_rate: float = Field(default=1e-3, gt=0.0, description="Learning rate")
+    weight_decay: float = Field(default=1e-4, ge=0.0, description="Weight decay")
+    momentum: float | None = Field(default=0.9, ge=0.0, le=1.0, description="Momentum (for SGD)")
+    custom_params: dict[str, Any] = Field(default_factory=dict, description="Additional optimizer parameters")
+
+
+class LossConfig(BaseModel):
+    """Loss function configuration."""
+
+    name: str = Field(default="cross_entropy", description="Loss function name")
+    reduction: str = Field(default="mean", description="Reduction method")
+    custom_params: dict[str, Any] = Field(default_factory=dict, description="Additional loss parameters")
+
+
+class TrainingConfig(BaseModel):
+    """Training loop configuration."""
+
+    # Training parameters
+    batch_size: int = Field(default=32, gt=0, description="Batch size")
+    num_epochs: int = Field(default=10, gt=0, description="Number of epochs")
+    num_workers: int = Field(default=4, ge=0, description="Number of data loading workers")
+
+    # Optimization
+    optimizer: OptimizerConfig = Field(default_factory=OptimizerConfig)
+    loss: LossConfig = Field(default_factory=LossConfig)
+
+    # Learning rate scheduling
+    use_scheduler: bool = Field(default=True, description="Use learning rate scheduler")
+    scheduler_type: str = Field(default="reduce_on_plateau", description="Scheduler type")
+    scheduler_patience: int = Field(default=5, gt=0, description="Scheduler patience")
+
+    # Regularization
+    early_stopping_patience: int = Field(default=10, gt=0, description="Early stopping patience")
+    gradient_clip_value: float | None = Field(default=1.0, gt=0.0, description="Gradient clipping value")
+
+    # Checkpointing
+    save_best_only: bool = Field(default=True, description="Save only best model")
+    checkpoint_dir: str = Field(default="checkpoints", description="Checkpoint directory")
+
+    # Monitoring
+    log_interval: int = Field(default=10, gt=0, description="Logging interval (batches)")
+    eval_interval: int = Field(default=1, gt=0, description="Evaluation interval (epochs)")
+
+    # Reproducibility
+    seed: int = Field(default=42, description="Random seed")
+
+    class Config:
+        extra = "allow"
