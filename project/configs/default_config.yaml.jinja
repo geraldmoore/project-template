@@ -54,32 +54,10 @@ training:
   # Reproducibility
   seed: 42
 
-# Data configuration
-data:
-  train_path: "data/train.csv"
-  val_path: "data/val.csv"
-  test_path: "data/test.csv"
-
-  # Data format
-  data_format: "csv"
-  target_column: "label"
-
-  # Preprocessing
-  normalize: true
-  standardize: false
-
-  # Augmentation
-  use_augmentation: false
-
-  # Split ratios
-  train_split: 0.8
-  val_split: 0.1
-  test_split: 0.1
-
-  # Loading options
-  shuffle: true
-  pin_memory: true
-  drop_last: false
+# Data paths
+train_path: "data/train.csv"
+val_path: "data/val.csv"
+test_path: "data/test.csv"
 
 # Output paths
 output_dir: "outputs"

@@ -43,3 +43,25 @@ class BaseTracker(ABC):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_run()
+
+
+class NoOpTracker(BaseTracker):
+    """No-op tracker for when no experiment tracking is configured."""
+
+    def start_run(self, run_name: str | None = None, config: dict[str, Any] | None = None) -> None:
+        pass
+
+    def log_metrics(self, metrics: dict[str, float], step: int | None = None) -> None:
+        pass
+
+    def log_params(self, params: dict[str, Any]) -> None:
+        pass
+
+    def log_artifact(self, path: str | Path, name: str | None = None) -> None:
+        pass
+
+    def log_model(self, model: Any, name: str = "model") -> None:
+        pass
+
+    def end_run(self) -> None:
+        pass

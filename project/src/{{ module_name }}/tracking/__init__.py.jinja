@@ -5,21 +5,20 @@ Configure via experiment_tracker option when creating project.
 """
 {%- if experiment_tracker == "wandb" %}
 
-from {{ module_name }}.ml.tracking.wandb_tracker import WandBTracker
+from {{ module_name }}.tracking.wandb_tracker import WandBTracker
 
 ExperimentTracker = WandBTracker
 __all__ = ["WandBTracker", "ExperimentTracker"]
 {%- elif experiment_tracker == "mlflow" %}
 
-from {{ module_name }}.ml.tracking.mlflow_tracker import MLFlowTracker
+from {{ module_name }}.tracking.mlflow_tracker import MLFlowTracker
 
 ExperimentTracker = MLFlowTracker
 __all__ = ["MLFlowTracker", "ExperimentTracker"]
 {%- else %}
 
-from {{ module_name }}.ml.tracking.base import BaseTracker
+from {{ module_name }}.tracking.base import NoOpTracker
 
-# No tracking configured - use no-op tracker
-ExperimentTracker = BaseTracker
-__all__ = ["BaseTracker", "ExperimentTracker"]
+ExperimentTracker = NoOpTracker
+__all__ = ["NoOpTracker", "ExperimentTracker"]
 {%- endif %}

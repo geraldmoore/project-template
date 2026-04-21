@@ -1,14 +1,6 @@
 # {{ project_name }}
 
 {{ project_description }}
-{%- if is_ml_project %}
-
-This is a machine learning project with support for:
-- **Framework**: {{ ml_framework | capitalize }}{%- if ml_framework == "agnostic" %} (with PyTorch implementations){%- endif %}
-- **Experiment Tracking**: {%- if experiment_tracker == "wandb" %} Weights & Biases{%- elif experiment_tracker == "mlflow" %} MLflow{%- else %}None configured (can be added later){%- endif %}
-- **Configuration**: YAML configs with pydantic validation
-- **Pipeline**: Training, evaluation, and prediction scripts included
-{%- endif %}
 
 ## Installation
 
@@ -96,7 +88,6 @@ import logging
 
 setup_logging(level=logging.DEBUG)
 ```
-{%- endif %}
 {%- if is_ml_project %}
 
 ## Machine Learning
@@ -108,7 +99,7 @@ This project includes a complete ML pipeline with training, evaluation, and pred
 Experiment configurations are defined in YAML files with pydantic validation:
 
 ```python
-from {{ module_name }}.ml.configs.experiment import ExperimentConfig
+from {{ module_name }}.configs.experiment import ExperimentConfig
 
 # Load from YAML
 config = ExperimentConfig.from_yaml("configs/default_config.yaml")
@@ -122,18 +113,17 @@ config = ExperimentConfig(
 
 Available configuration files:
 - `configs/default_config.yaml` - Default experiment settings
-- `configs/experiment_example.yaml` - Example with custom hyperparameters
 
 ### Training
 
 ```python
-from {{ module_name }}.ml import train
+from {{ module_name }}.scripts.train import train
 
 # Train with config file
 results = train("configs/default_config.yaml")
 
 # Or with config object
-from {{ module_name }}.ml.configs.experiment import ExperimentConfig
+from {{ module_name }}.configs.experiment import ExperimentConfig
 config = ExperimentConfig.from_yaml("configs/default_config.yaml")
 results = train(config)
 ```
@@ -147,7 +137,7 @@ Training includes:
 ### Evaluation
 
 ```python
-from {{ module_name }}.ml import evaluate
+from {{ module_name }}.scripts.evaluate import evaluate
 
 metrics = evaluate(
     config="configs/default_config.yaml",
@@ -157,20 +147,16 @@ metrics = evaluate(
 print(f"Test accuracy: {metrics['accuracy']:.4f}")
 ```
 
-### Prediction/Inference
+### Prediction
 
 ```python
-from {{ module_name }}.ml import predict
-import numpy as np
+from {{ module_name }}.scripts.predict import predict
 
-# Single prediction
-result = predict(
+predictions = predict(
     config="configs/default_config.yaml",
     model_path="outputs/my_experiment/best_model.pth",
-    inputs=np.random.randn(1, 784),  # Your input features
+    input_data=my_input,
 )
-
-print(f"Prediction: {result['predictions']}")
 ```
 
 ### Experiment Tracking
@@ -214,7 +200,7 @@ pip install wandb
 wandb login
 ```
 
-Then update `src/{{ module_name }}/ml/tracking/__init__.py` to use `WandBTracker`.
+Then update `src/{{ module_name }}/tracking/__init__.py` to use `WandBTracker`.
 
 **MLflow:**
 ```bash
@@ -222,45 +208,20 @@ pip install mlflow
 mlflow ui
 ```
 
-Then update `src/{{ module_name }}/ml/tracking/__init__.py` to use `MLFlowTracker`.
+Then update `src/{{ module_name }}/tracking/__init__.py` to use `MLFlowTracker`.
 {%- endif %}
 
 ### Adding Custom Models
 
-1. Create your model in `src/{{ module_name }}/ml/models/`:
-
-```python
-from {{ module_name }}.ml.models.base import BaseModel
-
-class MyModel(BaseModel):
-    def __init__(self, ...):
-        super().__init__()
-        # Define layers
-
-    def forward(self, x):
-        # Forward pass
-        pass
-
-    def save(self, path):
-        # Save implementation
-        pass
-
-    @classmethod
-    def load(cls, path):
-        # Load implementation
-        pass
-```
-
-2. Update `train.py`, `evaluate.py`, and `predict.py` to use your model.
+Replace the inline `MLP` class in `scripts/train.py`, `scripts/evaluate.py`, and `scripts/predict.py` with your own model architecture. Each script has a `_create_model` / `_load_model` function that acts as the integration point.
 
 ### Data Loading
 
-Customize data loading in `src/{{ module_name }}/ml/data/datasets.py`:
+Implement data loading in `scripts/train.py` inside `_prepare_data`:
 
 ```python
-def _load_dataset(path: str, config: DataConfig):
+def _prepare_data(config: ExperimentConfig):
     # Implement for your data format
-    # Supports CSV, Parquet, JSON, or custom formats
+    # Return (train_loader, val_loader)
     pass
 ```
-{%- endif %}

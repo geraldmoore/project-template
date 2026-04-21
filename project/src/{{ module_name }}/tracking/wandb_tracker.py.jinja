@@ -1,0 +1,47 @@
+"""Weights & Biases experiment tracker."""
+
+
+class WandBTracker:
+    """Weights & Biases experiment tracker."""
+
+    def __init__(self, project: str, name: str | None = None):
+        import wandb
+        self.wandb = wandb
+        self.project = project
+        self.name = name
+        self._run = None
+
+    def start_run(self, run_name: str | None = None, config: dict[str, Any] | None = None) -> None:
+        self._run = self.wandb.init(project=self.project, name=run_name or self.name, config=config)
+
+    def log_metrics(self, metrics: dict[str, float], step: int | None = None) -> None:
+        self.wandb.log(metrics, step=step)
+
+    def log_params(self, params: dict[str, Any]) -> None:
+        self.wandb.config.update(params)
+
+    def log_artifact(self, path: str | Path, name: str | None = None) -> None:
+        import wandb
+        artifact = wandb.Artifact(name or Path(path).name, type="model")
+        artifact.add_file(str(path))
+        wandb.log_artifact(artifact)
+
+    def log_model(self, model: Any, name: str = "model") -> None:
+        import torch
+        from pathlib import Path
+        path = Path("model.pt")
+        torch.save(model.state_dict(), path)
+        self.log_artifact(path, name)
+
+    def watch_model(self, model: Any, criterion: Any) -> None:
+        self.wandb.watch(model, criterion)
+
+    def end_run(self) -> None:
+        if self._run:
+            self._run.finish()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end_run()

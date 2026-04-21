@@ -1,0 +1,140 @@
+"""Prediction pipeline for {{ project_name }}."""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Any
+
+from {{ module_name }}.configs.experiment import ExperimentConfig
+
+logger = logging.getLogger(__name__)
+
+
+def predict(
+    config: ExperimentConfig | str | Path,
+    model_path: str | Path,
+    input_data: Any,
+    output_dir: str | Path | None = None,
+) -> Any:
+    """
+    Run inference with a trained model.
+
+    Args:
+        config: Experiment configuration object or path to YAML config file.
+        model_path: Path to trained model checkpoint.
+        input_data: Input data for inference.
+        output_dir: Optional directory to save predictions.
+
+    Returns:
+        Model predictions.
+    """
+    if isinstance(config, (str, Path)):
+        config = ExperimentConfig.from_yaml(config)
+
+    model = _load_model(model_path, config)
+    predictions = _run_inference(model, input_data, config)
+
+    if output_dir is not None:
+        import json
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        preds_path = output_dir / "predictions.json"
+        with open(preds_path, "w") as f:
+            json.dump(predictions if isinstance(predictions, list) else str(predictions), f, indent=2)
+        logger.info(f"Saved predictions to {preds_path}")
+
+    return predictions
+
+
+def _load_model(model_path: str | Path, config: ExperimentConfig):
+    """Load trained model from checkpoint."""
+    {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
+    import torch
+
+    # TODO: Replace with your model class
+    class MLP(torch.nn.Module):
+        def __init__(self, input_dim: int, hidden_dims: list[int], output_dim: int):
+            super().__init__()
+            layers = []
+            prev_dim = input_dim
+            for hidden_dim in hidden_dims:
+                layers.extend([torch.nn.Linear(prev_dim, hidden_dim), torch.nn.ReLU()])
+                prev_dim = hidden_dim
+            layers.append(torch.nn.Linear(prev_dim, output_dim))
+            self.network = torch.nn.Sequential(*layers)
+
+        def forward(self, x):
+            return self.network(x)
+
+    model = MLP(
+        input_dim=config.model.input_dim,
+        hidden_dims=config.model.hidden_dims,
+        output_dim=config.model.output_dim,
+    )
+    checkpoint = torch.load(model_path, map_location=config.device, weights_only=True)
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
+    model.eval()
+    return model
+    {%- elif ml_framework == "tensorflow" or ml_framework == "agnostic" %}
+    import tensorflow as tf
+
+    return tf.keras.models.load_model(model_path)
+    {%- endif %}
+
+
+def _run_inference(model, input_data: Any, config: ExperimentConfig) -> Any:
+    """Run model inference on input data."""
+    {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
+    import torch
+
+    device = torch.device(config.device if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+
+    with torch.no_grad():
+        if not isinstance(input_data, torch.Tensor):
+            input_data = torch.tensor(input_data, dtype=torch.float32)
+        input_data = input_data.to(device)
+        outputs = model(input_data)
+        if config.model.output_dim > 1:
+            predictions = outputs.argmax(dim=1).cpu().tolist()
+        else:
+            predictions = (torch.sigmoid(outputs) > 0.5).long().cpu().tolist()
+
+    return predictions
+    {%- elif ml_framework == "tensorflow" or ml_framework == "agnostic" %}
+    import numpy as np
+
+    predictions = model.predict(input_data, verbose=0)
+    if config.model.output_dim > 1:
+        return np.argmax(predictions, axis=1).tolist()
+    return (predictions > 0.5).astype(int).tolist()
+    {%- endif %}
+
+
+def main():
+    """CLI entry point for prediction."""
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="Run model inference")
+    parser.add_argument("--config", "-c", type=str, required=True, help="Path to config YAML")
+    parser.add_argument("--model-path", "-m", type=str, required=True, help="Path to model checkpoint")
+    parser.add_argument("--output-dir", "-o", type=str, default=None, help="Output directory")
+    args = parser.parse_args()
+
+    try:
+        # TODO: Load input_data from a file or stdin based on your use case
+        predictions = predict(args.config, args.model_path, input_data=None, output_dir=args.output_dir)
+        print(f"Predictions: {predictions}")
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

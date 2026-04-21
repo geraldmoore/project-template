@@ -26,6 +26,25 @@ jobs:
       - name: Run prek hooks
         run: uvx prek run --all-files
 
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install {{ python_version }}
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Type check
+        run: uv run ty check
+
   test:
     runs-on: ubuntu-latest
     strategy:

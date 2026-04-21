@@ -5,9 +5,8 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field
 
-from {{ module_name }}.ml.configs.data import DataConfig
-from {{ module_name }}.ml.configs.model import ModelConfig
-from {{ module_name }}.ml.configs.training import TrainingConfig
+from {{ module_name }}.configs.model import ModelConfig
+from {{ module_name }}.configs.training import TrainingConfig
 
 
 class ExperimentConfig(BaseModel):
@@ -24,7 +23,11 @@ class ExperimentConfig(BaseModel):
     # Sub-configurations
     model: ModelConfig = Field(default_factory=ModelConfig)
     training: TrainingConfig = Field(default_factory=TrainingConfig)
-    data: DataConfig = Field(default_factory=DataConfig)
+
+    # Data paths
+    train_path: str = Field(default="data/train", description="Training data path")
+    val_path: str = Field(default="data/val", description="Validation data path")
+    test_path: str = Field(default="data/test", description="Test data path")
 
     # Output paths
     output_dir: str = Field(default="outputs", description="Output directory")

@@ -12,7 +12,7 @@ class OptimizerConfig(BaseModel):
     learning_rate: float = Field(default=1e-3, gt=0.0, description="Learning rate")
     weight_decay: float = Field(default=1e-4, ge=0.0, description="Weight decay")
     momentum: float | None = Field(default=0.9, ge=0.0, le=1.0, description="Momentum (for SGD)")
-    custom_params: dict[str, Any] = Field(default_factory=dict, description="Additional optimizer parameters")
+    kwargs: dict[str, Any] = Field(default_factory=dict, description="Additional optimizer parameters")
 
 
 class LossConfig(BaseModel):
@@ -20,7 +20,7 @@ class LossConfig(BaseModel):
 
     name: str = Field(default="cross_entropy", description="Loss function name")
     reduction: str = Field(default="mean", description="Reduction method")
-    custom_params: dict[str, Any] = Field(default_factory=dict, description="Additional loss parameters")
+    kwargs: dict[str, Any] = Field(default_factory=dict, description="Additional loss parameters")
 
 
 class TrainingConfig(BaseModel):
@@ -34,6 +34,11 @@ class TrainingConfig(BaseModel):
     # Optimization
     optimizer: OptimizerConfig = Field(default_factory=OptimizerConfig)
     loss: LossConfig = Field(default_factory=LossConfig)
+
+    # Loading options
+    shuffle: bool = Field(default=True, description="Shuffle training data")
+    pin_memory: bool = Field(default=True, description="Pin memory for data loading")
+    drop_last: bool = Field(default=False, description="Drop last incomplete batch")
 
     # Learning rate scheduling
     use_scheduler: bool = Field(default=True, description="Use learning rate scheduler")

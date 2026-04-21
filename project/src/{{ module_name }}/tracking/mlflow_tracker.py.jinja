@@ -1,0 +1,47 @@
+"""MLflow experiment tracker."""
+
+
+class MLFlowTracker:
+    """MLflow experiment tracker."""
+
+    def __init__(self, experiment_name: str):
+        import mlflow
+        self.mlflow = mlflow
+        self.experiment_name = experiment_name
+        self._run = None
+
+    def start_run(self, run_name: str | None = None, config: dict[str, Any] | None = None) -> None:
+        self.mlflow.set_experiment(self.experiment_name)
+        self._run = self.mlflow.start_run(run_name=run_name)
+        if config:
+            self.mlflow.log_params(config)
+
+    def log_metrics(self, metrics: dict[str, float], step: int | None = None) -> None:
+        if step is not None:
+            metrics_with_step = {k: (v, step) for k, v in metrics.items()}
+            self.mlflow.log_metrics(dict(metrics_with_step), step=step)
+        else:
+            self.mlflow.log_metrics(metrics)
+
+    def log_params(self, params: dict[str, Any]) -> None:
+        self.mlflow.log_params(params)
+
+    def log_artifact(self, path: str | Path, name: str | None = None) -> None:
+        self.mlflow.log_artifact(str(path), artifact_path=name)
+
+    def log_model(self, model: Any, name: str = "model") -> None:
+        import torch
+        from pathlib import Path
+        path = Path("model.pt")
+        torch.save(model.state_dict(), path)
+        self.mlflow.log_artifact(str(path), artifact_path=name)
+
+    def end_run(self) -> None:
+        if self._run:
+            self.mlflow.end_run()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end_run()

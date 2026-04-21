@@ -41,15 +41,3 @@ test-cov:
 install:
     uv sync
     uvx prek install
-{%- if is_ml_project %}
-
-# ML commands
-train *args:
-    uv run python -m {{ module_name }}.ml.train {{ '{{ args }}' }}
-
-evaluate *args:
-    uv run python -m {{ module_name }}.ml.evaluate {{ '{{ args }}' }}
-
-predict *args:
-    uv run python -m {{ module_name }}.ml.predict {{ '{{ args }}' }}
-{%- endif %}

@@ -1,0 +1,33 @@
+"""Pytest configuration and shared fixtures."""
+
+import pytest
+{%- if is_ml_project %}
+from pathlib import Path
+
+from {{ module_name }}.configs.experiment import ExperimentConfig
+{%- endif %}
+{%- if setup_settings %}
+
+from {{ module_name }}.core.config import get_settings
+{%- endif %}
+{%- if setup_settings %}
+
+
+@pytest.fixture
+def settings():
+    return get_settings()
+{%- endif %}
+{%- if is_ml_project %}
+
+
+@pytest.fixture
+def default_config() -> ExperimentConfig:
+    return ExperimentConfig()
+
+
+@pytest.fixture
+def config_file(tmp_path: Path, default_config: ExperimentConfig) -> Path:
+    path = tmp_path / "config.yaml"
+    default_config.to_yaml(path)
+    return path
+{%- endif %}

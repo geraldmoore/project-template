@@ -1,0 +1,7 @@
+"""Configuration schemas for ML experiments."""
+
+from {{ module_name }}.configs.experiment import ExperimentConfig
+from {{ module_name }}.configs.model import ModelConfig
+from {{ module_name }}.configs.training import TrainingConfig
+
+__all__ = ["ExperimentConfig", "ModelConfig", "TrainingConfig"]
