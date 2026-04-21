@@ -30,7 +30,7 @@ class Formatter(logging.Formatter):
 
 @lru_cache(maxsize=1)
 def get_logging_config(level: int = logging.INFO) -> dict[str, Any]:
-    """Return a logging dict config with colorama-colored console output."""
+    """Return a logging dict config with colorama-coloured console output."""
     return {
         "version": 1,
         "disable_existing_loggers": False,

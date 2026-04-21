@@ -39,7 +39,7 @@ def train(
     # Save config
     config.save(output_dir)
 
-    # Initialize tracker
+    # Initialise tracker
     tracker = _get_tracker(config)
 
     # Set random seed for reproducibility
@@ -48,10 +48,10 @@ def train(
     # Prepare data
     train_loader, val_loader = _prepare_data(config)
 
-    # Initialize model
+    # Initialise model
     model = _create_model(config)
 
-    # Initialize optimizer and loss
+    # Initialise optimiser and loss
     optimizer = _create_optimizer(model, config)
     criterion = _create_criterion(config)
 
@@ -143,7 +143,7 @@ def train(
 
 
 def _get_tracker(config: ExperimentConfig) -> ExperimentTracker:
-    """Initialize experiment tracker based on configuration."""
+    """Initialise experiment tracker based on configuration."""
     {%- if experiment_tracker == "wandb" %}
     return ExperimentTracker(
         project=config.project_name,
@@ -197,7 +197,7 @@ def _create_model(config: ExperimentConfig):
 
 
 def _create_optimizer(model, config: ExperimentConfig):
-    """Create optimizer based on configuration."""
+    """Create optimiser based on configuration."""
     {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
     import torch.optim as optim
 

@@ -19,8 +19,8 @@ class ModelConfig(BaseModel):
 
     {%- if ml_framework == "tensorflow" or ml_framework == "agnostic" %}
     # TensorFlow-specific config
-    kernel_initializer: str = Field(default="glorot_uniform", description="Kernel initializer")
-    bias_initializer: str = Field(default="zeros", description="Bias initializer")
+    kernel_initializer: str = Field(default="glorot_uniform", description="Kernel initialiser")
+    bias_initializer: str = Field(default="zeros", description="Bias initialiser")
     {%- endif %}
 
     # Architecture parameters (flexible, framework-agnostic)
