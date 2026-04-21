@@ -62,7 +62,7 @@ packages = ["src/{{ module_name }}"]
 {%- if is_ml_project %}
 
 [project.scripts]
-{{ module_name }}-train = "{{ module_name }}.scripts.train:main"
-{{ module_name }}-evaluate = "{{ module_name }}.scripts.evaluate:main"
-{{ module_name }}-predict = "{{ module_name }}.scripts.predict:main"
+train = "{{ module_name }}.scripts.train:main"
+evaluate = "{{ module_name }}.scripts.evaluate:main"
+predict = "{{ module_name }}.scripts.predict:main"
 {%- endif %}
