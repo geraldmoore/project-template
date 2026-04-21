@@ -14,6 +14,9 @@ dependencies = [
     "pydantic>=2.11.3",
     "pydantic-settings>=2.9.0",
     {%- endif %}
+    {%- if is_ml_project %}
+    "pyyaml>=6.0",
+    {%- endif %}
 ]
 
 [dependency-groups]

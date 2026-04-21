@@ -77,18 +77,6 @@ ml_framework:
   default: "pytorch"
   when: "{{ is_ml_project }}"
 
-add_autoresearch_setup:
-  type: bool
-  help: Add autoresearch setup for an agent to configure project?
-  default: no
-  when: "{{ is_ml_project }}"
-
-autoresearch_metric:
-  type: str
-  help: What is the primary metric to track for autoresearch? (e.g., accuracy, f1, val_loss)
-  default: "accuracy"
-  when: "{{ add_autoresearch_setup }}"
-
 license:
   type: str
   help: What license do you want to use?
@@ -97,34 +85,3 @@ license:
 
 _tasks:
   - git init
-
-project/tests/conftest.py.jinja
-project/.python-version.jinja
-project/src/{{ module_name }}/{{ module_name }}.py.jinja
-project/src/{{ module_name }}/__init__.py.jinja
-project/tests/test_{{ module_name }}.py.jinja
-project/.env.jinja
-project/src/{{ module_name }}/{% if setup_settings or setup_logging %}core{% endif %}/config/__init__.py.jinja
-project/src/{{ module_name }}/{% if setup_settings or setup_logging %}core{% endif %}/config/{% if setup_logging %}logging.py{% endif %}.jinja
-project/src/{{ module_name }}/{% if setup_settings or setup_logging %}core{% endif %}/config/{% if setup_settings %}settings.py{% endif %}.jinja
-project/.gitignore.jinja
-project/README.md.jinja
-project/justfile.jinja
-project/pyproject.toml.jinja
-{%- if is_ml_project %}
-project/scripts/train.py.jinja
-project/scripts/evaluate.py.jinja
-project/scripts/predict.py.jinja
-project/configs/default_config.yaml.jinja
-project/src/{{ module_name }}/configs/__init__.py.jinja
-project/src/{{ module_name }}/configs/experiment.py.jinja
-project/src/{{ module_name }}/configs/model.py.jinja
-project/src/{{ module_name }}/configs/training.py.jinja
-project/src/{{ module_name }}/tracking/__init__.py.jinja
-project/src/{{ module_name }}/tracking/base.py.jinja
-{%- if experiment_tracker == "wandb" %}
-project/src/{{ module_name }}/tracking/wandb_tracker.py.jinja
-{%- elif experiment_tracker == "mlflow" %}
-project/src/{{ module_name }}/tracking/mlflow_tracker.py.jinja
-{%- endif %}
-{%- endif %}
