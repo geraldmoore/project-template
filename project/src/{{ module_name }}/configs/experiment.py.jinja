@@ -12,7 +12,7 @@ from {{ module_name }}.configs.training import TrainingConfig
 class ExperimentConfig(BaseModel):
     """Root experiment configuration."""
 
-    # Experiment metadata
+    # Experiment details
     name: str = Field(default="experiment", description="Experiment name")
     description: str = Field(default="", description="Experiment description")
     version: str = Field(default="0.1.0", description="Experiment version")

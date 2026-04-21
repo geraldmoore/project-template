@@ -23,7 +23,7 @@ class ModelConfig(BaseModel):
     bias_initializer: str = Field(default="zeros", description="Bias initialiser")
     {%- endif %}
 
-    # Architecture parameters (flexible, framework-agnostic)
+    # Architecture parameters
     hidden_dims: list[int] = Field(default_factory=lambda: [128, 64], description="Hidden layer dimensions")
     input_dim: int = Field(default=784, description="Input feature dimension")
     output_dim: int = Field(default=10, description="Output dimension (num classes)")
