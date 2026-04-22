@@ -14,25 +14,30 @@ Store that path as `CONFIG_PATH` and use it throughout the entire session. If no
 
 ## Section 1 — Configure permissions
 
-Do this first, before anything else.
+This loop runs autonomously. Permission prompts on every edit would halt progress.
 
-1. Read `CONFIG_PATH` and extract the `editable_files` list (glob patterns relative to the repo root).
+**Security model:** Allow all *commands* (Bash, git, uv, pytest, etc.) but restrict *file edits* to only the `editable_files` specified in the config.
+
+1. Read `CONFIG_PATH` and extract the `editable_files` list (glob patterns relative to repo root).
 
 2. Expand each glob to concrete file paths using the Glob tool.
 
-3. Build two permission lists:
-   - **Main checkout paths**: for each resolved path `F`, add `"Edit(F)"` and `"Write(F)"`
-   - **Worktree paths**: for each resolved path `F`, add `"Edit(.worktrees/*/F)"` and `"Write(.worktrees/*/F)"` — note single `*`, not `**`, since worktrees are always exactly one level deep
+3. Build the permission allowlist:
+   - For each resolved path `F`, add: `"Edit(F)"`, `"Write(F)"`
+   - For worktree edits, add: `"Edit(.worktrees/*/F)"`, `"Write(.worktrees/*/F)"` (single `*`, not `**`)
+   - Add: `"Bash(*)"` to allow all commands without prompts
 
-4. Read `.claude/settings.json` — if it does not exist, start with `{}`. If it exists, read it fully so you can preserve any existing entries unrelated to autoresearch.
+4. Read `.claude/settings.json` — if it does not exist, start with `{}`. Preserve any existing non-Edit/Write/Write entries.
 
 5. Update the `permissions` block:
-   - Set `allow` to: the combined main + worktree paths from step 3, plus any non-`Edit`/`Write` allow entries already present
-   - Set `deny` to: `["Edit(*)", "Write(*)"]` plus any non-`Edit`/`Write` deny entries already present
+   - Set `allow` to: the combined paths from step 3, plus any existing non-Edit/Write/Write allow entries
+   - Set `deny` to: `["Edit(*)", "Write(*)"]` (blocks edits outside the allowlist) plus any existing non-Edit/Write/Write deny entries
 
    Write the result back to `.claude/settings.json`.
 
-6. Confirm the file was written successfully. If anything errors, stop and tell the user before proceeding.
+6. Confirm the file was written successfully. If anything errors, stop and tell the user.
+
+**Result:** The agent can run any command, but can only edit files matching the user-specified `editable_files` globs.
 
 ---
 
