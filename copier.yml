@@ -70,11 +70,10 @@ experiment_tracker:
   default: "none"
   when: "{{ is_ml_project }}"
 
-ml_framework:
-  type: str
-  help: Which ML framework to use?
-  choices: ["pytorch", "tensorflow", "agnostic"]
-  default: "pytorch"
+add_autoresearch:
+  type: bool
+  help: Add autoresearch setup for autonomous ML experimentation?
+  default: no
   when: "{{ is_ml_project }}"
 
 license:

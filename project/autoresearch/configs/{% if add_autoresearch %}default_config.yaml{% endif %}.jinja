@@ -1,0 +1,17 @@
+editable_files:
+  - "src/{{ module_name }}/models.py"
+  - "configs/default_config.yaml"
+
+metric:
+  name: accuracy
+  direction: maximize    # maximize or minimize
+
+acceptance:
+  window: 3              # accept if beats best of last N iterations
+  explore_ratio: 0.2     # fraction of iterations that bypass acceptance check
+
+iterations: 10           # max iterations, or "unlimited"
+
+scripts:
+  train: "uv run scripts/train.py --config configs/default_config.yaml --output-dir outputs/autoresearch"
+  evaluate: "uv run scripts/evaluate.py --config configs/default_config.yaml --model-path outputs/autoresearch/best_model.pth --output-dir outputs/autoresearch/evaluation"

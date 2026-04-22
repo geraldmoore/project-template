@@ -1,0 +1,245 @@
+# autoresearch
+
+An autonomous ML research loop. You will iteratively modify code, train, evaluate, and keep changes that improve a target metric — running until the iteration limit is reached or you are manually stopped.
+
+## Invocation
+
+The user will provide a path to a YAML config file when pointing you at this file, for example:
+
+> "follow autoresearch/program.md using autoresearch/configs/default_config.yaml"
+
+Store that path as `CONFIG_PATH` and use it throughout the entire session. If no path was provided, ask the user for one before proceeding.
+
+---
+
+## Section 1 — Configure permissions
+
+Do this first, before anything else.
+
+1. Read `CONFIG_PATH` and extract the `editable_files` list (glob patterns relative to the repo root).
+
+2. Expand each glob to concrete file paths using the Glob tool.
+
+3. Build two permission lists:
+   - **Main checkout paths**: for each resolved path `F`, add `"Edit(F)"` and `"Write(F)"`
+   - **Worktree paths**: for each resolved path `F`, add `"Edit(.worktrees/*/F)"` and `"Write(.worktrees/*/F)"` — note single `*`, not `**`, since worktrees are always exactly one level deep
+
+4. Read `.claude/settings.json` — if it does not exist, start with `{}`. If it exists, read it fully so you can preserve any existing entries unrelated to autoresearch.
+
+5. Update the `permissions` block:
+   - Set `allow` to: the combined main + worktree paths from step 3, plus any non-`Edit`/`Write` allow entries already present
+   - Set `deny` to: `["Edit(*)", "Write(*)"]` plus any non-`Edit`/`Write` deny entries already present
+
+   Write the result back to `.claude/settings.json`.
+
+6. Confirm the file was written successfully. If anything errors, stop and tell the user before proceeding.
+
+---
+
+## Section 2 — Setup
+
+Run once after permissions are confirmed.
+
+1. Read `CONFIG_PATH` fully and store:
+   - `METRIC_NAME`: the value of `metric.name`
+   - `METRIC_DIRECTION`: `maximize` or `minimize`
+   - `WINDOW`: `acceptance.window` (default 3)
+   - `EXPLORE_RATIO`: `acceptance.explore_ratio` (default 0.2)
+   - `MAX_ITERATIONS`: `iterations` (default `unlimited`)
+   - `TRAIN_CMD`: `scripts.train`
+   - `EVAL_CMD`: `scripts.evaluate`
+   - `EDITABLE_FILES`: the fully expanded list of concrete file paths from Section 1
+
+2. Derive:
+   - `CONFIG_STEM`: the config filename without extension (e.g. `default_config` from `default_config.yaml`)
+   - `RESULTS_PATH`: `autoresearch/results/<CONFIG_STEM>.tsv`
+   - `EXPERIMENT_CONFIG_PATH`: the path in `EDITABLE_FILES` that is a `.yaml` file under `configs/`, if any (e.g. `configs/default_config.yaml`). If none exists, set to `null` — the experiment name update steps are skipped.
+
+3. Determine `RUN_BRANCH`:
+   - Start with `autoresearch/<CONFIG_STEM>-<today's date as YYYY-MM-DD>`
+   - Check if this branch already exists: `git branch --list autoresearch/<CONFIG_STEM>-<date>`
+   - If it exists, append a counter: `-2`, `-3`, etc., until you find a name that is free
+   - Store the final name as `RUN_BRANCH`
+
+4. Check git status. If there are uncommitted changes, stop and tell the user to commit or stash them before proceeding.
+
+5. Create the run branch from the current HEAD:
+   ```bash
+   git checkout -b <RUN_BRANCH>
+   ```
+
+6. If `RESULTS_PATH` does not exist, create it with this tab-separated header (do NOT commit this file — leave it untracked):
+   ```
+   iter	commit	<METRIC_NAME>	step_type	status	description
+   ```
+
+7. Read `README.md` and every file in `EDITABLE_FILES`. Understand what each file does, what the model architecture is, what the training loop looks like, and what constraints exist before touching anything.
+
+8. Confirm setup is complete. Print the run branch name, results path, editable files, and experiment config path so the user can verify everything before the loop begins.
+
+---
+
+## Section 3 — Establish baseline
+
+Run the current code unchanged to establish the baseline metric. This is iteration 0.
+
+1. Create a worktree from the current tip of `RUN_BRANCH`:
+   ```bash
+   git worktree add .worktrees/iter-0 -b <RUN_BRANCH>/iter-0 <RUN_BRANCH>
+   ```
+
+2. If `EXPERIMENT_CONFIG_PATH` is not null, directly edit the `name` field in `.worktrees/iter-0/<EXPERIMENT_CONFIG_PATH>` to `<CONFIG_STEM>-baseline`.
+
+3. Run train and evaluate from inside the worktree, redirecting all output:
+   ```bash
+   cd .worktrees/iter-0 && <TRAIN_CMD> > run.log 2>&1
+   cd .worktrees/iter-0 && <EVAL_CMD> >> run.log 2>&1
+   ```
+
+4. Read `.worktrees/iter-0/outputs/autoresearch/evaluation/metrics.json` and extract the value of `METRIC_NAME`. If the file is missing, the run crashed — read the last 50 lines of `.worktrees/iter-0/run.log`, attempt one fix, re-run. If it still fails, stop and tell the user.
+
+5. Store this as `BASELINE_METRIC`. Initialise a rolling history list with this value repeated `WINDOW` times (so the first real iteration compares against the baseline).
+
+6. Log to `RESULTS_PATH` (tab-separated):
+   ```
+   0	<short commit hash>	<metric value>	baseline	keep	baseline
+   ```
+
+7. Clean up the worktree:
+   ```bash
+   git worktree remove .worktrees/iter-0 --force
+   git branch -D <RUN_BRANCH>/iter-0
+   ```
+
+---
+
+## Section 4 — Experiment loop
+
+Repeat for N = 1, 2, 3, … until `MAX_ITERATIONS` is reached (or indefinitely if `unlimited`).
+
+**NEVER pause to ask the user whether to continue. NEVER STOP unless you hit the iteration limit or encounter an unrecoverable error. The user may be away from their computer and expects you to run autonomously.**
+
+**If you feel stuck** (e.g. the last 5 exploit steps all resulted in `discard`): force the next iteration to be an explore step regardless of the random draw. Re-read all `EDITABLE_FILES` looking for angles you have not tried. Review `RESULTS_PATH` for near-misses — experiments that were discarded by a small margin — and consider combining their ideas. Try something more radical: a different architecture family, a different optimiser, a different approach to the data. Do not give up or ask the user for direction.
+
+---
+
+### Step A — Determine step type
+
+Generate a random integer using bash and compare it to the threshold:
+```bash
+echo $((RANDOM % 100))
+```
+- If the result is less than `EXPLORE_RATIO × 100` (e.g. less than 20 for a ratio of 0.2): this is an **explore step** — be bold, try something architecturally different or unexpected
+- Otherwise: this is an **exploit step** — make a targeted, incremental improvement informed by the history
+
+---
+
+### Step B — Create a worktree
+
+```bash
+git worktree add .worktrees/iter-N -b <RUN_BRANCH>/iter-N <RUN_BRANCH>
+```
+
+The worktree starts from the current tip of `RUN_BRANCH` (the last accepted state).
+
+---
+
+### Step C — Edit code
+
+Read `RESULTS_PATH` before deciding what to change. Understand which experiments improved the metric, which were discarded, and why. Do not repeat a discarded idea verbatim.
+
+Edit only the files in `EDITABLE_FILES`, inside `.worktrees/iter-N/`. You cannot modify any other file.
+
+**Exploit step**: make a targeted change that builds on what has worked — model architecture adjustments, hyperparameter tuning, or both. Prefer changes with a clear rationale from the history.
+
+**Explore step**: try something more disruptive. Change the architecture substantially, adjust multiple hyperparameters together, or try an idea you would not attempt in an exploit step. Do not be timid.
+
+**Simplicity counts**: a small improvement with clean code beats a large improvement with ugly code. Removing something that achieves equal or better results is always a win. Do not add complexity for marginal gains.
+
+**Cannot install new packages**: you may only use what is already in `pyproject.toml`. Do not run `uv add`, `pip install`, or any equivalent. If an idea requires a new dependency, pick a different idea.
+
+**Model changes go in `src/{{ module_name }}/models.py`**: all model classes must be registered with `@register_model` so the training and evaluation scripts can load them by name. Update `configs/default_config.yaml` to set `model.name` to the registered name of your new or modified model.
+
+**Mandatory — always update the experiment name**: if `EXPERIMENT_CONFIG_PATH` is not null, directly edit the `name` field in `.worktrees/iter-N/<EXPERIMENT_CONFIG_PATH>` to `<CONFIG_STEM>-iter-N` (e.g. `default_config-iter-3`). This ensures every run is identifiable in experiment tracking dashboards.
+
+Then commit inside the worktree:
+```bash
+cd .worktrees/iter-N && git add <changed files> && git commit -m "iter-N: <one line description of the change>"
+```
+
+Write a concrete commit message — e.g. `iter-3: increased hidden_dims to [128, 64, 32]` or `iter-5: switched optimizer to SGD with momentum 0.9`. Avoid vague messages like `iter-3: modified model`.
+
+---
+
+### Step D — Train and evaluate
+
+Run both commands from inside the worktree, redirecting all output:
+```bash
+cd .worktrees/iter-N && <TRAIN_CMD> > run.log 2>&1
+cd .worktrees/iter-N && <EVAL_CMD> >> run.log 2>&1
+```
+
+If either command has not completed after 10× the baseline runtime, kill it and treat the result as a crash.
+
+---
+
+### Step E — Read the result
+
+Read `.worktrees/iter-N/outputs/autoresearch/evaluation/metrics.json` and extract the value of `METRIC_NAME`. Store it as `THIS_METRIC`.
+
+**If the file is missing (crash)**:
+- Read the last 50 lines of `.worktrees/iter-N/run.log`
+- If the error is trivial (import error, typo, missing file), fix it in the worktree and re-run once
+- If the idea is fundamentally broken, skip to Step F with status `crash`
+
+---
+
+### Step F — Acceptance check
+
+Add `THIS_METRIC` to the rolling history (keep only the last `WINDOW` values).
+
+Determine `BEST_IN_WINDOW`: the best value in the rolling history.
+- "best" means highest if `METRIC_DIRECTION` is `maximize`, lowest if `minimize`
+
+**Exploit step**: accept if `THIS_METRIC` is strictly better than `BEST_IN_WINDOW`.
+
+**Explore step**: always accept.
+
+**Crash**: always reject.
+
+---
+
+### Step G — Merge or discard
+
+**If accepted**:
+```bash
+git merge --ff-only <RUN_BRANCH>/iter-N
+git worktree remove .worktrees/iter-N --force
+git branch -D <RUN_BRANCH>/iter-N
+```
+Update `BEST_IN_WINDOW` if this result is the new best.
+
+Log to `RESULTS_PATH` with a specific description of exactly what was changed:
+```
+N	<short commit hash>	<THIS_METRIC>	<exploit|explore>	keep	<specific description>
+```
+
+**If rejected or crashed**:
+```bash
+git worktree remove .worktrees/iter-N --force
+git branch -D <RUN_BRANCH>/iter-N
+```
+Log to `RESULTS_PATH`:
+```
+N	<short commit hash>	<THIS_METRIC or 0.0 for crash>	<exploit|explore>	<discard|crash>	<specific description>
+```
+
+---
+
+## Section 5 — On completion
+
+When the iteration limit is reached:
+
+1. Print a summary: total iterations, number kept, number discarded, number crashed, best metric achieved vs baseline, and the commit hash of the best result.
+2. Remind the user that `RESULTS_PATH` contains the full history and the run branch `<RUN_BRANCH>` holds all accepted commits.
+3. Do not push anything — leave that to the user.

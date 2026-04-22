@@ -1,0 +1,24 @@
+import torch.nn as nn
+
+from {{ module_name }}.configs.model import ModelConfig
+
+available_models: dict[str, type[nn.Module]] = {}
+
+
+def register_model(name: str):
+    """Decorator to register a model class by name."""
+    def decorator(cls: type[nn.Module]) -> type[nn.Module]:
+        available_models[name] = cls
+        return cls
+    return decorator
+
+
+@register_model("my_model")
+class MyModel(nn.Module):
+    """My model."""
+
+    def __init__(self, config: ModelConfig) -> None:
+        super().__init__()
+
+    def forward(self, x):
+        raise NotImplementedError

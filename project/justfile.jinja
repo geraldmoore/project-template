@@ -41,3 +41,23 @@ test-cov:
 install:
     uv sync
     uvx prek install
+{%- if is_ml_project %}
+{%- if add_autoresearch %}
+
+# Run the autoresearch loop
+autoresearch config="autoresearch/configs/default_config.yaml":
+    claude "follow autoresearch/program.md using {{ '{{config}}' }}"
+{%- endif %}
+
+# Train a model
+train config *args:
+    uv run scripts/train.py --config {{ '{{config}}' }} {{ '{{args}}' }}
+
+# Evaluate a model
+evaluate config model_path *args:
+    uv run scripts/evaluate.py --config {{ '{{config}}' }} --model-path {{ '{{model_path}}' }} {{ '{{args}}' }}
+
+# Run inference
+predict config model_path *args:
+    uv run scripts/predict.py --config {{ '{{config}}' }} --model-path {{ '{{model_path}}' }} {{ '{{args}}' }}
+{%- endif %}

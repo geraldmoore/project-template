@@ -22,3 +22,28 @@ uv.lock
 .pytest_cache/
 .ruff_cache/
 __pycache__/
+
+# env — use .env.example to document required variables
+.env
+{%- if is_ml_project %}
+
+# ML artifacts — large files should not be committed
+data/*
+!data/**/.gitkeep
+models/*
+!models/**/.gitkeep
+outputs/
+logs/
+
+# model weights
+*.pth
+*.pt
+*.pkl
+*.ckpt
+*.safetensors
+
+# experiment tracking
+wandb/
+mlruns/
+.neptune/
+{%- endif %}

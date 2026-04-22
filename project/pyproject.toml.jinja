@@ -59,10 +59,3 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/{{ module_name }}"]
-{%- if is_ml_project %}
-
-[project.scripts]
-train = "{{ module_name }}.scripts.train:main"
-evaluate = "{{ module_name }}.scripts.evaluate:main"
-predict = "{{ module_name }}.scripts.predict:main"
-{%- endif %}

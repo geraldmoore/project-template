@@ -1,0 +1,59 @@
+"""Dataset and DataLoader construction for {{ project_name }}."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from torch.utils.data import DataLoader, Dataset
+
+from {{ module_name }}.configs.experiment import ExperimentConfig
+
+
+class BaseDataset(Dataset):
+    """Base dataset — subclass this and implement __len__ and __getitem__."""
+
+    def __init__(self, data_path: str | Path, config: ExperimentConfig) -> None:
+        self.data_path = Path(data_path)
+        self.config = config
+        # Load data
+
+    def __len__(self) -> int:
+        raise NotImplementedError
+
+    def __getitem__(self, idx: int):
+        raise NotImplementedError
+
+
+def get_dataloaders(config: ExperimentConfig) -> tuple[DataLoader, DataLoader]:
+    """Return (train_loader, val_loader)."""
+    train_dataset = BaseDataset(config.train_path, config)
+    val_dataset = BaseDataset(config.val_path, config)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=config.training.batch_size,
+        shuffle=config.training.shuffle,
+        num_workers=config.training.num_workers,
+        pin_memory=config.training.pin_memory,
+        drop_last=config.training.drop_last,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=config.training.batch_size,
+        shuffle=False,
+        num_workers=config.training.num_workers,
+        pin_memory=config.training.pin_memory,
+    )
+    return train_loader, val_loader
+
+
+def get_test_dataloader(config: ExperimentConfig) -> DataLoader:
+    """Return test_loader."""
+    test_dataset = BaseDataset(config.test_path, config)
+    return DataLoader(
+        test_dataset,
+        batch_size=config.training.batch_size,
+        shuffle=False,
+        num_workers=config.training.num_workers,
+        pin_memory=config.training.pin_memory,
+    )

@@ -51,7 +51,7 @@ class TrainingConfig(BaseModel):
 
     # Checkpointing
     save_best_only: bool = Field(default=True, description="Save only best model")
-    checkpoint_dir: str = Field(default="checkpoints", description="Checkpoint directory")
+    checkpoint_dir: str = Field(default="models", description="Checkpoint directory")
 
     # Monitoring
     log_interval: int = Field(default=10, gt=0, description="Logging interval (batches)")

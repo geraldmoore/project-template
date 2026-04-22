@@ -8,8 +8,8 @@ project_name: "{{ project_name }}"
 
 # Model configuration
 model:
-  name: "mlp"
-  model_type: "mlp"
+  name: "my_model"
+  model_type: "my_model"
   input_dim: 784          # e.g., 28x28 flattened images
   output_dim: 10          # e.g., 10 classes
   hidden_dims: [128, 64]  # Hidden layer sizes
@@ -45,7 +45,7 @@ training:
 
   # Checkpointing
   save_best_only: true
-  checkpoint_dir: "checkpoints"
+  checkpoint_dir: "models"
 
   # Monitoring
   log_interval: 10

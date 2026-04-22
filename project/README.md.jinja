@@ -214,11 +214,11 @@ Then update `src/{{ module_name }}/tracking/__init__.py` to use `MLFlowTracker`.
 
 ### Adding Custom Models
 
-Replace the inline `MLP` class in `src/{{ module_name }}/scripts/train.py`, `evaluate.py`, and `predict.py` with your own model architecture. Each script has a `_create_model` / `_load_model` function that acts as the integration point.
+Replace the inline `MLP` class in `scripts/train.py`, `scripts/evaluate.py`, and `scripts/predict.py` with your own model architecture. Each script has a `_create_model` / `_load_model` function that acts as the integration point.
 
 ### Data Loading
 
-Implement data loading in `src/{{ module_name }}/scripts/train.py` inside `_prepare_data`:
+Implement data loading in `scripts/train.py` inside `_prepare_data`:
 
 ```python
 def _prepare_data(config: ExperimentConfig):

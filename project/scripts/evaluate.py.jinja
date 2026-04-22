@@ -1,0 +1,130 @@
+"""Evaluation pipeline for {{ project_name }}."""
+
+from __future__ import annotations
+
+import json
+import logging
+from pathlib import Path
+from typing import Any
+
+from {{ module_name }}.configs.experiment import ExperimentConfig
+
+logger = logging.getLogger(__name__)
+
+
+def evaluate(
+    config: ExperimentConfig | str | Path,
+    model_path: str | Path,
+    output_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    """
+    Evaluate a trained model on test data.
+
+    Args:
+        config: Experiment configuration object or path to YAML config file.
+        model_path: Path to trained model checkpoint.
+        output_dir: Optional output directory for results.
+
+    Returns:
+        Dictionary containing evaluation metrics.
+    """
+    # Load configuration
+    if isinstance(config, (str, Path)):
+        config = ExperimentConfig.from_yaml(config)
+
+    # Set up output directory
+    output_dir = Path(output_dir) if output_dir else Path(config.output_dir) / config.name / "evaluation"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load model
+    model = _load_model(model_path, config)
+
+    # Prepare test data
+    test_loader = _prepare_test_data(config)
+
+    logger.info("Evaluating model on test set")
+    metrics = _run_evaluation(model, test_loader, config)
+
+    results_path = output_dir / "metrics.json"
+    with open(results_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+    logger.info(f"Saved evaluation metrics to {results_path}")
+
+    return metrics
+
+
+def _load_model(model_path: str | Path, config: ExperimentConfig):
+    """Load trained model from checkpoint."""
+    import torch
+
+    model = _create_model(config)
+    checkpoint = torch.load(model_path, map_location=config.device, weights_only=True)
+
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
+
+    model.eval()
+    return model
+
+
+def _create_model(config: ExperimentConfig):
+    """Create model based on configuration."""
+    from {{ module_name }}.models import available_models
+
+    model_cls = available_models[config.model.name]
+    return model_cls(config.model)
+
+
+def _prepare_test_data(config: ExperimentConfig):
+    """Return test_loader — implemented in dataset.py."""
+    from {{ module_name }}.dataset import get_test_dataloader
+
+    return get_test_dataloader(config)
+
+
+def _run_evaluation(model, dataloader, config: ExperimentConfig) -> dict[str, float]:
+    """Collect model outputs over the test set and return metrics."""
+    import torch
+
+    model.eval()
+    device = torch.device(config.device if torch.cuda.is_available() else "cpu")
+    all_outputs: list = []
+    all_targets: list = []
+
+    with torch.no_grad():
+        for inputs, targets in dataloader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            all_outputs.append(model(inputs).cpu())
+            all_targets.append(targets.cpu())
+
+    # Compute your task-specific metrics here, e.g.:
+    # outputs = torch.cat(all_outputs)
+    # targets = torch.cat(all_targets)
+    return {}
+
+
+def main():
+    """CLI entry point for evaluation."""
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="Evaluate a model")
+    parser.add_argument("--config", "-c", type=str, required=True, help="Path to config YAML")
+    parser.add_argument("--model-path", "-m", type=str, required=True, help="Path to model checkpoint")
+    parser.add_argument("--output-dir", "-o", type=str, default=None, help="Output directory")
+    args = parser.parse_args()
+
+    try:
+        metrics = evaluate(args.config, args.model_path, output_dir=args.output_dir)
+        for key, value in metrics.items():
+            print(f"{key}:{value}")
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

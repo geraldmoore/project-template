@@ -50,29 +50,12 @@ def predict(
 
 def _load_model(model_path: str | Path, config: ExperimentConfig):
     """Load trained model from checkpoint."""
-    {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
     import torch
 
-    # TODO: Replace with your model class
-    class MLP(torch.nn.Module):
-        def __init__(self, input_dim: int, hidden_dims: list[int], output_dim: int):
-            super().__init__()
-            layers = []
-            prev_dim = input_dim
-            for hidden_dim in hidden_dims:
-                layers.extend([torch.nn.Linear(prev_dim, hidden_dim), torch.nn.ReLU()])
-                prev_dim = hidden_dim
-            layers.append(torch.nn.Linear(prev_dim, output_dim))
-            self.network = torch.nn.Sequential(*layers)
+    from {{ module_name }}.models import available_models
 
-        def forward(self, x):
-            return self.network(x)
-
-    model = MLP(
-        input_dim=config.model.input_dim,
-        hidden_dims=config.model.hidden_dims,
-        output_dim=config.model.output_dim,
-    )
+    model_cls = available_models[config.model.name]
+    model = model_cls(config.model)
     checkpoint = torch.load(model_path, map_location=config.device, weights_only=True)
     if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
         model.load_state_dict(checkpoint["model_state_dict"])
@@ -80,16 +63,10 @@ def _load_model(model_path: str | Path, config: ExperimentConfig):
         model.load_state_dict(checkpoint)
     model.eval()
     return model
-    {%- elif ml_framework == "tensorflow" or ml_framework == "agnostic" %}
-    import tensorflow as tf
-
-    return tf.keras.models.load_model(model_path)
-    {%- endif %}
 
 
 def _run_inference(model, input_data: Any, config: ExperimentConfig) -> Any:
-    """Run model inference on input data."""
-    {%- if ml_framework == "pytorch" or ml_framework == "agnostic" %}
+    """Run model inference and return raw outputs."""
     import torch
 
     device = torch.device(config.device if torch.cuda.is_available() else "cpu")
@@ -98,22 +75,10 @@ def _run_inference(model, input_data: Any, config: ExperimentConfig) -> Any:
     with torch.no_grad():
         if not isinstance(input_data, torch.Tensor):
             input_data = torch.tensor(input_data, dtype=torch.float32)
-        input_data = input_data.to(device)
-        outputs = model(input_data)
-        if config.model.output_dim > 1:
-            predictions = outputs.argmax(dim=1).cpu().tolist()
-        else:
-            predictions = (torch.sigmoid(outputs) > 0.5).long().cpu().tolist()
+        outputs = model(input_data.to(device))
 
-    return predictions
-    {%- elif ml_framework == "tensorflow" or ml_framework == "agnostic" %}
-    import numpy as np
-
-    predictions = model.predict(input_data, verbose=0)
-    if config.model.output_dim > 1:
-        return np.argmax(predictions, axis=1).tolist()
-    return (predictions > 0.5).astype(int).tolist()
-    {%- endif %}
+    # Post-process outputs
+    return outputs.cpu().tolist()
 
 
 def main():
@@ -128,7 +93,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        # TODO: Load input_data from a file or stdin based on your use case
+        # Load data
         predictions = predict(args.config, args.model_path, input_data=None, output_dir=args.output_dir)
         print(f"Predictions: {predictions}")
     except Exception as e:
