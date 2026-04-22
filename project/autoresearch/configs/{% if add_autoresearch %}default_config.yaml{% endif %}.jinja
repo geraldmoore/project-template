@@ -6,11 +6,14 @@ metric:
   name: accuracy
   direction: maximize    # maximize or minimize
 
-acceptance:
-  window: 3              # accept if beats best of last N iterations
-  explore_ratio: 0.2     # fraction of iterations that bypass acceptance check
-
 iterations: 10           # max iterations, or "unlimited"
+
+time_budget_minutes:     # optional: kill runs exceeding this (null = no limit)
+
+tree_search:
+  max_branches: 3        # max children per node before pruning
+  priority: "metric"     # "metric" = best first, "diversity" = explore different paths
+  stuck_threshold: 5    # revert after this many consecutive failures on a branch
 
 scripts:
   train: "uv run scripts/train.py --config configs/default_config.yaml --output-dir outputs/autoresearch"

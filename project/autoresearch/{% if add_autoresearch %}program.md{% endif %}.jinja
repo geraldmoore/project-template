@@ -48,12 +48,14 @@ Run once after permissions are confirmed.
 1. Read `CONFIG_PATH` fully and store:
    - `METRIC_NAME`: the value of `metric.name`
    - `METRIC_DIRECTION`: `maximize` or `minimize`
-   - `WINDOW`: `acceptance.window` (default 3)
-   - `EXPLORE_RATIO`: `acceptance.explore_ratio` (default 0.2)
+   - `MAX_BRANCHES`: `tree_search.max_branches` (default 3)
+   - `TREE_PRIORITY`: `tree_search.priority` ("metric" or "diversity")
    - `MAX_ITERATIONS`: `iterations` (default `unlimited`)
+   - `STUCK_THRESHOLD`: `tree_search.stuck_threshold` (default 5) — revert after this many consecutive failures on a branch
    - `TRAIN_CMD`: `scripts.train`
    - `EVAL_CMD`: `scripts.evaluate`
    - `EDITABLE_FILES`: the fully expanded list of concrete file paths from Section 1
+   - `TIME_BUDGET_MINUTES`: `time_budget_minutes` (default `null` = no limit)
 
 2. Derive:
    - `CONFIG_STEM`: the config filename without extension (e.g. `default_config` from `default_config.yaml`)
@@ -75,12 +77,17 @@ Run once after permissions are confirmed.
 
 6. If `RESULTS_PATH` does not exist, create it with this tab-separated header (do NOT commit this file — leave it untracked):
    ```
-   iter	commit	<METRIC_NAME>	step_type	status	description
+   iter	commit	<METRIC_NAME>	parent_node	status	description
    ```
 
-7. Read `README.md` and every file in `EDITABLE_FILES`. Understand what each file does, what the model architecture is, what the training loop looks like, and what constraints exist before touching anything.
+7. Initialise the tree state:
+   - Create `autoresearch/tree_state.json` with: `{"nodes": [], "root": null, "current_node": null, "stuck_count": 0}`
+   - Each node in the tree has: `{id, parent_id, commit, metric, depth, children: [], description, status}`
+   - The tree persists across iterations — do NOT reset it
 
-8. Confirm setup is complete. Print the run branch name, results path, editable files, and experiment config path so the user can verify everything before the loop begins.
+8. Read `README.md` and every file in `EDITABLE_FILES`. Understand what each file does, what the model architecture is, what the training loop looks like, and what constraints exist before touching anything.
+
+9. Confirm setup is complete. Print the run branch name, results path, editable files, and experiment config path so the user can verify everything before the loop begins.
 
 ---
 
@@ -103,14 +110,20 @@ Run the current code unchanged to establish the baseline metric. This is iterati
 
 4. Read `.worktrees/iter-0/outputs/autoresearch/evaluation/metrics.json` and extract the value of `METRIC_NAME`. If the file is missing, the run crashed — read the last 50 lines of `.worktrees/iter-0/run.log`, attempt one fix, re-run. If it still fails, stop and tell the user.
 
-5. Store this as `BASELINE_METRIC`. Initialise a rolling history list with this value repeated `WINDOW` times (so the first real iteration compares against the baseline).
+5. Store this as `BASELINE_METRIC`.
 
-6. Log to `RESULTS_PATH` (tab-separated):
+6. Add the root node to the tree:
+   - Read `autoresearch/tree_state.json`
+   - Add node: `{id: "root", parent_id: null, commit: "<short hash of current HEAD>", metric: BASELINE_METRIC, depth: 0, children: [], description: "baseline", status: "active"}`
+   - Set `root` and `current_node` to "root"
+   - Write back to `autoresearch/tree_state.json`
+
+7. Log to `RESULTS_PATH` (tab-separated):
    ```
-   0	<short commit hash>	<metric value>	baseline	keep	baseline
+   0	<short commit hash>	<metric value>	root	keep	baseline
    ```
 
-7. Clean up the worktree:
+8. Clean up the worktree:
    ```bash
    git worktree remove .worktrees/iter-0 --force
    git branch -D <RUN_BRANCH>/iter-0
@@ -124,46 +137,58 @@ Repeat for N = 1, 2, 3, … until `MAX_ITERATIONS` is reached (or indefinitely i
 
 **NEVER pause to ask the user whether to continue. NEVER STOP unless you hit the iteration limit or encounter an unrecoverable error. The user may be away from their computer and expects you to run autonomously.**
 
-**If you feel stuck** (e.g. the last 5 exploit steps all resulted in `discard`): force the next iteration to be an explore step regardless of the random draw. Re-read all `EDITABLE_FILES` looking for angles you have not tried. Review `RESULTS_PATH` for near-misses — experiments that were discarded by a small margin — and consider combining their ideas. Try something more radical: a different architecture family, a different optimiser, a different approach to the data. Do not give up or ask the user for direction.
+---
+
+### Step A — Check if stuck and revert if needed
+
+1. Read `autoresearch/tree_state.json`.
+2. Get the current node (`current_node_id`) and its `stuck_count`.
+3. If `stuck_count >= STUCK_THRESHOLD`:
+   - Mark the current node as `stuck` (status)
+   - Find the best-performing ancestor node (highest metric if maximize, lowest if minimize)
+   - Set `current_node_id` to that ancestor's id
+   - Reset the stuck_count to 0
+   - Write back to `autoresearch/tree_state.json`
+   - Continue from Step B using that ancestor's commit
 
 ---
 
-### Step A — Determine step type
+### Step B — Select branch point
 
-Generate a random integer using bash and compare it to the threshold:
+1. Read `autoresearch/tree_state.json`.
+2. Find the node with id = `current_node_id`. Get its commit hash.
+3. Determine the branch depth: `depth + 1` of the current node.
+4. If `MAX_BRANCHES` is reached for this node (it already has that many children), either:
+   - If `TREE_PRIORITY` is "metric": use the best child (highest/lowest metric)
+   - If `TREE_PRIORITY` is "diversity": select a random child to explore a different path
+
+---
+
+### Step C — Create a worktree
+
+1. Get the commit hash of the branch point node from the tree state.
+2. Create a worktree from that commit:
 ```bash
-echo $((RANDOM % 100))
+git worktree add .worktrees/iter-N -b <RUN_BRANCH>/iter-N <commit-hash>
 ```
-- If the result is less than `EXPLORE_RATIO × 100` (e.g. less than 20 for a ratio of 0.2): this is an **explore step** — be bold, try something architecturally different or unexpected
-- Otherwise: this is an **exploit step** — make a targeted, incremental improvement informed by the history
+
+The worktree starts from the commit of the selected branch point (not necessarily `RUN_BRANCH` tip).
 
 ---
 
-### Step B — Create a worktree
+### Step C.5 — Edit code
 
-```bash
-git worktree add .worktrees/iter-N -b <RUN_BRANCH>/iter-N <RUN_BRANCH>
-```
-
-The worktree starts from the current tip of `RUN_BRANCH` (the last accepted state).
-
----
-
-### Step C — Edit code
-
-Read `RESULTS_PATH` before deciding what to change. Understand which experiments improved the metric, which were discarded, and why. Do not repeat a discarded idea verbatim.
+Read `autoresearch/tree_state.json` to understand the tree of tried approaches. When branching from a parent node, build on its ideas but try something different.
 
 Edit only the files in `EDITABLE_FILES`, inside `.worktrees/iter-N/`. You cannot modify any other file.
 
-**Exploit step**: make a targeted change that builds on what has worked — model architecture adjustments, hyperparameter tuning, or both. Prefer changes with a clear rationale from the history.
+**Try something different**: make a change that builds on the parent approach but explores a different direction. If exploring from the root, try something bold. If exploring from a deep branch, try variations that haven't been tried in that lineage.
 
-**Explore step**: try something more disruptive. Change the architecture substantially, adjust multiple hyperparameters together, or try an idea you would not attempt in an exploit step. Do not be timid.
-
-**Simplicity counts**: a small improvement with clean code beats a large improvement with ugly code. Removing something that achieves equal or better results is always a win. Do not add complexity for marginal gains.
+**Simplicity counts**: a small improvement with clean code beats a large improvement with ugly code.
 
 **Cannot install new packages**: you may only use what is already in `pyproject.toml`. Do not run `uv add`, `pip install`, or any equivalent. If an idea requires a new dependency, pick a different idea.
 
-**Model changes go in `src/{{ module_name }}/models.py`**: all model classes must be registered with `@register_model` so the training and evaluation scripts can load them by name. Update `configs/default_config.yaml` to set `model.name` to the registered name of your new or modified model.
+**Model changes go in `src/{{ module_name }}/models.py`**: all model classes must be registered with `@register_model` so the training and evaluation scripts can load them by name.
 
 **Mandatory — always update the experiment name**: if `EXPERIMENT_CONFIG_PATH` is not null, directly edit the `name` field in `.worktrees/iter-N/<EXPERIMENT_CONFIG_PATH>` to `<CONFIG_STEM>-iter-N` (e.g. `default_config-iter-3`). This ensures every run is identifiable in experiment tracking dashboards.
 
@@ -195,49 +220,64 @@ Read `.worktrees/iter-N/outputs/autoresearch/evaluation/metrics.json` and extrac
 **If the file is missing (crash)**:
 - Read the last 50 lines of `.worktrees/iter-N/run.log`
 - If the error is trivial (import error, typo, missing file), fix it in the worktree and re-run once
-- If the idea is fundamentally broken, skip to Step F with status `crash`
+- If the idea is fundamentally broken, treat as crash and proceed to Step F
 
 ---
 
-### Step F — Acceptance check
+### Step F — Add node to tree
 
-Add `THIS_METRIC` to the rolling history (keep only the last `WINDOW` values).
+1. Read `autoresearch/tree_state.json`.
+2. Get the commit hash from this iteration's worktree.
+3. Add a new node:
+   - `id`: "iter-N"
+   - `parent_id`: the `current_node_id` from Step B
+   - `commit`: the commit hash of the change
+   - `metric`: `THIS_METRIC` (or 0.0 if crash)
+   - `depth`: the branch depth from Step B
+   - `children`: []
+   - `description`: specific description of what was changed
+   - `status`: "improved", "same", "regressed", or "crash"
+4. Add "iter-N" to the parent's `children` list.
+5. Update `current_node_id` to "iter-N".
+6. Determine if stuck:
+   - If status is "regressed" or "crash": increment `stuck_count`
+   - Otherwise: reset `stuck_count` to 0
+7. If status is "improved": this becomes the new best, continue from this node
+8. Write back to `autoresearch/tree_state.json`
 
-Determine `BEST_IN_WINDOW`: the best value in the rolling history.
-- "best" means highest if `METRIC_DIRECTION` is `maximize`, lowest if `minimize`
-
-**Exploit step**: accept if `THIS_METRIC` is strictly better than `BEST_IN_WINDOW`.
-
-**Explore step**: always accept.
-
-**Crash**: always reject.
+**Improvement criteria**: Compare `THIS_METRIC` to the parent's metric:
+- If `METRIC_DIRECTION` is `maximize` and `THIS_METRIC > parent.metric`: status = "improved"
+- If `METRIC_DIRECTION` is `minimize` and `THIS_METRIC < parent.metric`: status = "improved"
+- If equal: status = "same" (not stuck, but no progress)
+- Otherwise: status = "regressed"
 
 ---
 
 ### Step G — Merge or discard
 
-**If accepted**:
+**If status is "improved" or "same"** (merge into RUN_BRANCH):
 ```bash
 git merge --ff-only <RUN_BRANCH>/iter-N
 git worktree remove .worktrees/iter-N --force
 git branch -D <RUN_BRANCH>/iter-N
 ```
-Update `BEST_IN_WINDOW` if this result is the new best.
 
-Log to `RESULTS_PATH` with a specific description of exactly what was changed:
+Log to `RESULTS_PATH`:
 ```
-N	<short commit hash>	<THIS_METRIC>	<exploit|explore>	keep	<specific description>
+N	<short commit hash>	<THIS_METRIC>	<parent_id>	<status>	<specific description>
 ```
 
-**If rejected or crashed**:
+**If status is "regressed" or "crash"**:
 ```bash
 git worktree remove .worktrees/iter-N --force
 git branch -D <RUN_BRANCH>/iter-N
 ```
 Log to `RESULTS_PATH`:
 ```
-N	<short commit hash>	<THIS_METRIC or 0.0 for crash>	<exploit|explore>	<discard|crash>	<specific description>
+N	<short commit hash>	<THIS_METRIC or 0.0 for crash>	<parent_id>	<status>	<specific description>
 ```
+
+Then proceed to the next iteration. The stuck detection in Step A will handle reverting if needed.
 
 ---
 
